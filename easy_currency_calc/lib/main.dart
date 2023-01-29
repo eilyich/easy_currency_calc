@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+
+final numberFormat = NumberFormat.decimalPattern();
 
 Future<Map<String, double>> getExchangeRates(String baseCurrency) async {
   var response = await http.get(
@@ -67,10 +70,10 @@ class _MainScreenState extends State<MainScreen> {
                         getExchangeRates(value!).then((value) {
                           setState(() {
                             _exchangeRates = value;
+                            _baseCurrencyIndex = i;
                           });
                         });
                       }
-                      _baseCurrencyIndex = i;
                     });
                   },
                   items: _currencies
@@ -91,29 +94,33 @@ class _MainScreenState extends State<MainScreen> {
                         return;
                       }
                       double enteredValue = double.parse(value);
-                      setState(() {
-                        _inputValues[i] = enteredValue;
-                        for (var j = 0; j < 6; j++) {
-                          if (j != i) {
-                            _inputValues[j] = enteredValue *
-                                (_exchangeRates[_currencies[j]] ?? 1);
-                            _controllers[j].text = _inputValues[j].toString();
-                            _controllers[j].selection =
-                                TextSelection.fromPosition(TextPosition(
-                                    offset: _controllers[j].text.length));
-                          }
-                        }
-                      });
+
                       // extract the baseCurrency value here
                       String baseCurrency = _currencies[i];
                       getExchangeRates(baseCurrency).then((value) {
                         setState(() {
                           _exchangeRates = value;
+                          _inputValues[i] = enteredValue;
+
+                          for (var j = 0; j < 6; j++) {
+                            if (j != i) {
+                              _inputValues[j] = enteredValue *
+                                  (_exchangeRates[_currencies[j]] ?? 1);
+                              _controllers[j].text =
+                                  _inputValues[j].toStringAsFixed(2);
+                              _controllers[j].selection =
+                                  TextSelection.fromPosition(TextPosition(
+                                offset: _controllers[j].text.length,
+                              ));
+                            }
+                          }
                         });
                       });
                     },
                     // show input value multiplied by selected currency rate
                     controller: _controllers[i],
+                    // controller: TextEditingController(
+                    //     text: numberFormat.format(_inputValues[i])),
                   ),
                 ),
               ],
