@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<Map<String, double>> getExchangeRates(String baseCurrency) async {
-  final response = await http.get(
+  var response = await http.get(
       Uri.parse('https://api.exchangerate-api.com/v4/latest/$baseCurrency'));
   if (response.statusCode == 200) {
     Map<String, dynamic> data = jsonDecode(response.body);
@@ -39,11 +39,12 @@ class _MainScreenState extends State<MainScreen> {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   late Map<String, double> _exchangeRates;
+  int _baseCurrencyIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    getExchangeRates('USD').then((value) {
+    getExchangeRates(_currencies[_baseCurrencyIndex]).then((value) {
       setState(() {
         _exchangeRates = value;
       });
@@ -62,11 +63,14 @@ class _MainScreenState extends State<MainScreen> {
                   onChanged: (value) {
                     setState(() {
                       _currencies[i] = value!;
-                    });
-                    getExchangeRates(value!).then((value) {
-                      setState(() {
-                        _exchangeRates = value;
-                      });
+                      if (i == _baseCurrencyIndex) {
+                        getExchangeRates(value!).then((value) {
+                          setState(() {
+                            _exchangeRates = value;
+                          });
+                        });
+                      }
+                      _baseCurrencyIndex = i;
                     });
                   },
                   items: _currencies
