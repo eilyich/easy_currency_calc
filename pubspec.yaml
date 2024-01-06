@@ -10,8 +10,10 @@ environment:
 
 dependencies:
   http: ^0.13.5
-  intl: ^0.18.0
+  intl: 0.18.1
   shared_preferences: ^2.0.11
+  flutter_localizations:
+    sdk: flutter
   flutter:
     sdk: flutter
   flutter_linkify: ^5.0.2
@@ -32,6 +34,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
 flutter_icons:
   #android: true

@@ -1,0 +1,13 @@
+{
+    "pageSettingsInputLanguage": "{locale, select, ru {RU} en {EN} other {-}}",
+    "mainCurUpdated": "Rates updated",
+    "mainInfo": "Info",
+    "mainTheme": "Theme",
+    "mainUpdate": "Rates",
+    "exceptionRateFailure": "Exchange rates fetching failure",
+    "exceptionCheckConn": "Check Internet connection...",
+    "mainRatesLoading": "Loading exchange rates...",
+    "mainDisclamer1": "Simple currency converter created for your convenience.\n \nFor any questions feel free to ",
+    "mainDiclamer2": "mail me!",
+    "mainAbout": "About"
+}

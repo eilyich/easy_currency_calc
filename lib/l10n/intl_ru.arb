@@ -1,0 +1,13 @@
+{
+    "pageSettingsInputLanguage": "{locale, select, ru {RU} en {EN} other {-}}",
+    "mainCurUpdated": "Курсы обновлены",
+    "mainInfo": "Инфо",
+    "mainTheme": "Тема",
+    "mainUpdate": "Курс",
+    "exceptionRateFailure": "Не удалось получить обменный курс",
+    "exceptionCheckConn": "Проверьте соединение с Интернетом...",
+    "mainRatesLoading": "Загрузка обменного курса...",
+    "mainDisclamer1": "Простой конвертер валют создан для вашего удобства.\n \nБуду рад любым пожеланиям и благодарностям, ",
+    "mainDiclamer2": "пишите!",
+    "mainAbout": "О приожении"
+}
