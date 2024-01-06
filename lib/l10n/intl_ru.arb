@@ -4,6 +4,7 @@
     "mainInfo": "Инфо",
     "mainTheme": "Тема",
     "mainUpdate": "Курс",
+    "mainLang": "Язык",
     "exceptionRateFailure": "Не удалось получить обменный курс",
     "exceptionCheckConn": "Проверьте соединение с Интернетом...",
     "mainRatesLoading": "Загрузка обменного курса...",

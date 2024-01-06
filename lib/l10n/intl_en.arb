@@ -4,6 +4,7 @@
     "mainInfo": "Info",
     "mainTheme": "Theme",
     "mainUpdate": "Rates",
+    "mainLang": "Language",
     "exceptionRateFailure": "Exchange rates fetching failure",
     "exceptionCheckConn": "Check Internet connection...",
     "mainRatesLoading": "Loading exchange rates...",

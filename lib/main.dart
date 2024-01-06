@@ -61,48 +61,71 @@ void main() {
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  final ValueNotifier<bool> _isDarkMode =
-      ValueNotifier(false); // переключение тем
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
 
-  MyApp() {
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>(); // ????????????????
+  String _currentLocale = 'en';
+  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
+
+  @override
+  void initState() {
+    super.initState();
     _loadTheme();
   }
 
+  void changeLocale(String locale) {
+    setState(() {
+      _currentLocale = locale;
+    });
+  }
+
   void _loadTheme() async {
-    WidgetsFlutterBinding.ensureInitialized();
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    _isDarkMode.value = prefs.getBool('isDarkMode') ?? false;
+    setState(() {
+      _isDarkMode.value = prefs.getBool('isDarkMode') ?? false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: _isDarkMode,
-      builder: (context, isDarkMode, child) {
-        return MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          // locale: Locale(_currentLocale), // Установка локали
-
-          home: MainScreen(isDarkMode: _isDarkMode),
-          theme: ThemeData(
-            brightness: isDarkMode ? Brightness.dark : Brightness.light,
-            appBarTheme: AppBarTheme(
-              backgroundColor: isDarkMode
-                  ? const Color.fromARGB(255, 21, 25, 32)
-                  : const Color.fromARGB(255, 92, 145, 113),
+        valueListenable: _isDarkMode,
+        builder: (context, isDarkMode, child) {
+          return MaterialApp(
+            // Добавьте return здесь
+            navigatorKey: navigatorKey,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale(_currentLocale),
+            home: MainScreen(
+              isDarkMode: _isDarkMode,
+              changeLocale: changeLocale,
             ),
-          ),
-        );
-      },
-    );
+            theme: ThemeData(
+              brightness: _isDarkMode.value
+                  ? Brightness.dark
+                  : Brightness.light, // Используйте _isDarkMode здесь
+              appBarTheme: AppBarTheme(
+                backgroundColor: _isDarkMode.value
+                    ? const Color.fromARGB(255, 21, 25, 32)
+                    : const Color.fromARGB(255, 92, 145, 113),
+              ),
+            ),
+          );
+        });
   }
-} // новый метод с темой
+}
 
 class MainScreen extends StatefulWidget {
-  final ValueNotifier<bool> isDarkMode; // для изменения темы
-  MainScreen({required this.isDarkMode}); // для изменения темы
+  final ValueNotifier<bool> isDarkMode;
+  final Function(String) changeLocale;
+
+  MainScreen({required this.isDarkMode, required this.changeLocale});
 
   @override
   _MainScreenState createState() => _MainScreenState();
@@ -111,11 +134,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   void _toggleTheme() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isDark = !widget.isDarkMode.value;
     setState(() {
-      widget.isDarkMode.value = !widget.isDarkMode.value;
+      widget.isDarkMode.value = isDark;
     });
-    prefs.setBool('isDarkMode', widget.isDarkMode.value);
-  } // для переключения светлая-темная тема
+    prefs.setBool('isDarkMode', isDark);
+  }
 
   // String? _currentLocale;
   String _currentLocale = 'en'; // Начальная локаль
@@ -188,18 +212,12 @@ class _MainScreenState extends State<MainScreen> {
     'GEL': 1
   };
 
-  void _changeLanguage() {
-    setState(() {
-      _currentLocale = _currentLocale == 'en' ? 'ru' : 'en';
-    });
+  void _changeLanguage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String newLocale = _currentLocale == 'en' ? 'ru' : 'en';
+    prefs.setString('selectedLanguage', newLocale);
+    widget.changeLocale(newLocale);
   }
-
-  // void _changeLanguage() {
-  //   setState(() {
-  //     _currentLocale = _currentLocale == 'en' ? 'ru' : 'en';
-  //     onLocaleChange(_currentLocale);
-  //   });
-  // }
 
   Future<void> _saveSelectedCurrencies() async {
     final prefs = await SharedPreferences.getInstance();
@@ -219,6 +237,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // _loadTheme();
     _loadSelectedCurrencies(); // сохранение-загрузка состояния
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -480,17 +499,16 @@ class _MainScreenState extends State<MainScreen> {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text("О приложении"),
+                          title: Text(t.mainAbout),
                           content: SingleChildScrollView(
                             child: Text.rich(
                               TextSpan(
                                 children: [
-                                  const TextSpan(
-                                    text:
-                                        "Простой конвертер валют создан для вашего удобства.\n \nБуду рад любым пожеланиям, рекламациям и благодарностям, ",
+                                  TextSpan(
+                                    text: t.mainDisclamer1,
                                   ),
                                   TextSpan(
-                                    text: "пишите!",
+                                    text: t.mainDiclamer2,
                                     style: const TextStyle(color: Colors.blue),
                                     recognizer: TapGestureRecognizer()
                                       ..onTap = () async {
@@ -520,8 +538,8 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     },
                   ),
-                  const Text(
-                    'Инфо',
+                  Text(
+                    t.mainInfo,
                     style: TextStyle(fontSize: 11),
                   ),
                 ],
@@ -535,8 +553,8 @@ class _MainScreenState extends State<MainScreen> {
                         : Icons.wb_sunny),
                     onPressed: _toggleTheme,
                   ),
-                  const Text(
-                    'Тема',
+                  Text(
+                    t.mainTheme,
                     style: TextStyle(fontSize: 11),
                   ),
                 ],
@@ -550,8 +568,8 @@ class _MainScreenState extends State<MainScreen> {
                       _getRates();
                     },
                   ),
-                  const Text(
-                    'Курс',
+                  Text(
+                    t.mainUpdate,
                     style: TextStyle(fontSize: 11),
                   ),
                 ],
@@ -563,8 +581,8 @@ class _MainScreenState extends State<MainScreen> {
                     icon: const Icon(Icons.language),
                     onPressed: _changeLanguage,
                   ),
-                  const Text(
-                    'Язык',
+                  Text(
+                    t.mainLang,
                     style: TextStyle(fontSize: 11),
                   ),
                 ],
