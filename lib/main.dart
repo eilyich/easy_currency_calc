@@ -11,6 +11,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
+import 'curlib.dart';
+
 final logger = Logger(
   filter: null, // Вы можете использовать свой фильтр сообщений
   printer: PrettyPrinter(), // Вы можете использовать свой принтер сообщений
@@ -57,8 +59,13 @@ Future<bool> checkInternetConnection() async {
 }
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // добавленная строка
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]).then((_) {
+    runApp(MyApp());
+  });
 }
 
 class MyApp extends StatefulWidget {
@@ -67,8 +74,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>(); // ????????????????
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   String _currentLocale = 'en';
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
 
@@ -132,6 +138,8 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  bool areRatesLoaded = false;
+
   void _toggleTheme() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isDark = !widget.isDarkMode.value;
@@ -151,66 +159,19 @@ class _MainScreenState extends State<MainScreen> {
   // }
 
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
-  final List<String> _currencies = [
-    'RUB',
-    'USD',
-    'EUR',
-    'GBP',
-    'ILS',
-    'KZT',
-    'GEL',
-    'BYN',
-    'UAH',
-    'AZN',
-    'UZS ',
-    'TJS',
-    'KGS',
-    'CNY',
-    'AUD',
-    'THB',
-    'VND',
-    'KRW',
-    'TRY',
-    'TMT',
-    'PLN',
-    'SEK',
-    'NOK',
-    'LKR',
-    'MYR',
-    'IDR',
-    'JPY',
-    'SGD',
-    'RSD',
-    'CHF'
-  ];
+  final List<String> _currencies = currenciesOrder;
 
-  Map<String, String> currencyNames = {
-    'RUB': 'Российский рубль',
-    'USD': 'Доллар США',
-    'EUR': 'Евро',
-    'ILS': 'Шекель',
-    'KZT': 'Теньгушки',
-    'GEL': 'Лари'
-  };
+  Map<String, dynamic> getCurrencyNames(String locale) {
+    if (locale == 'ru') {
+      return aliasesRU;
+    } else {
+      return aliasesEN;
+    }
+  }
 
-  List<String> _selectedCurrencies = [
-    'RUB',
-    'USD',
-    'EUR',
-    'ILS',
-    'KZT',
-    'GEL',
-    'EUR'
-  ];
+  List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
 
-  Map<String, double> _rates = {
-    'RUB': 1,
-    'USD': 1,
-    'EUR': 1,
-    'ILS': 1,
-    'KZT': 1,
-    'GEL': 1
-  };
+  Map<String, double> _rates = {};
 
   void _changeLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -278,6 +239,7 @@ class _MainScreenState extends State<MainScreen> {
               key, value is double ? value : double.parse(value.toString()));
         });
         _lastUpdateTimestamp = result['timestamp'];
+        areRatesLoaded = true; // Обновление флага после загрузки курсов
       });
     } catch (e) {
       print('Error fetching exchange rates: $e');
@@ -317,7 +279,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    _currentLocale = Localizations.localeOf(context).languageCode;
+    // _currentLocale = Localizations.localeOf(context).languageCode;
+    String locale = Localizations.localeOf(context).languageCode;
+    Map<String, dynamic> currencyNames = getCurrencyNames(locale);
 
     var t = AppLocalizations.of(context)!;
 
@@ -403,8 +367,9 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                           controller: _controllers[index],
                           focusNode: _focusNodes[index],
-                          enabled: _rates[_selectedCurrencies[index]] !=
-                              null, // rates loading control
+                          // enabled: _rates[_selectedCurrencies[index]] !=
+                          //     null, // rates loading control
+                          enabled: areRatesLoaded,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true, signed: true),
                           inputFormatters: [
