@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 
 import 'curlib.dart';
 
@@ -208,7 +209,6 @@ class _MainScreenState extends State<MainScreen> {
         _getRates();
       }
     });
-    // _getRates();
   }
 
   bool _noInternetConnection = false;
@@ -242,8 +242,24 @@ class _MainScreenState extends State<MainScreen> {
         areRatesLoaded = true; // Обновление флага после загрузки курсов
       });
     } catch (e) {
-      print('Error fetching exchange rates: $e');
+      activateError(context, "error fetcing rates");
     }
+  }
+
+  void activateError(BuildContext context, String message) {
+    showToast(
+      message, // Используем переданное сообщение
+      context: context,
+      animation: StyledToastAnimation.slideFromBottomFade,
+      position: StyledToastPosition.center,
+      duration: const Duration(seconds: 2),
+      // backgroundColor: _isDarkMode.value
+      //                 ? const Color.fromARGB(255, 21, 25, 32)
+      //                 : const Color.fromARGB(255, 92, 145, 113),,
+      textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+      curve: Curves.elasticOut,
+      reverseCurve: Curves.linear,
+    );
   }
 
 //---------------------------- время
