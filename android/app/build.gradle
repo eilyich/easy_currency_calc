@@ -58,7 +58,7 @@ android {
     release {
         keyAlias 'key'
         keyPassword 'aVzk0451!1'
-        storeFile file('d:/flutter_windows/projects/easy_currency_calc_2/flutter_application_2/android/app/key.jks')
+        storeFile file('d:/flutter_windows/projects/easy_currency_calc/android/app/release-key.jks')
         storePassword 'aVzk0451!1'
         }
     }
