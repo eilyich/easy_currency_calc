@@ -31,8 +31,9 @@ Future<Map<String, dynamic>> getExchangeRates(
       'https://api.apilayer.com/fixer/latest?symbols=$symbolsParam&base=$base'; // API где 100 в мес
 
   // 'https://api.apilayer.com/exchangerates_data/latest?base=$base&symbols=$symbolsParam'; // API где 250 в мес
-  final headers = {'apikey': 'JBzY0tW3H76VayxaW2ylPfaL8nhLwGi3'};
+  final headers = {'apikey': 'Ce22Skfg1m7OrpKSV5LhnDL9wRhNhDHE'};
   // JBzY0tW3H76VayxaW2ylPfaL8nhLwGi3
+  // Ce22Skfg1m7OrpKSV5LhnDL9wRhNhDHE 11.01.2024
   // UK4FkPA8DyY8PIORlLrHOEXpIr6T5Hnu     // это хз что за ключ
 
   final response = await http.get(Uri.parse(url), headers: headers);
@@ -242,7 +243,8 @@ class _MainScreenState extends State<MainScreen> {
         areRatesLoaded = true; // Обновление флага после загрузки курсов
       });
     } catch (e) {
-      activateError(context, "error fetcing rates");
+      activateError(
+          context, AppLocalizations.of(context)!.exceptionRateFailure);
     }
   }
 
