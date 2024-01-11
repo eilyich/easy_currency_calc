@@ -279,10 +279,13 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Timer? _retryTimer;
+
   @override
   void dispose() {
     _controllers.forEach((controller) => controller.dispose());
     _focusNodes.forEach((node) => node.dispose());
+    _retryTimer?.cancel();
     super.dispose();
   }
 
@@ -292,34 +295,28 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _getRates() async {
-    // print(_currencies);
     try {
-      // Используйте _currencies в качестве списка валют для запроса
       final result = await getExchangeRates(baseCurrency, _currencies);
       setState(() {
-        _rates = result['rates'].map<String, double>((key, value) {
-          return MapEntry<String, double>(
-              key, value is double ? value : double.parse(value.toString()));
-        });
+        _rates = result['rates'].map<String, double>((key, value) =>
+            MapEntry<String, double>(
+                key, value is double ? value : double.parse(value.toString())));
         _lastUpdateTimestamp = result['timestamp'];
         areRatesLoaded = true;
-        setState(() {
-          if (areRatesLoaded) {
-            // Если курсы уже были загружены, выполните перерасчет
-            _recalculateCurrencies();
-          }
-          // Остальной код
-        });
-        setState(() {
-          // Сохранение в SharedPreferences
-          _saveRatesToSharedPreferences(result['rates']);
-        });
+
+        // Перерасчет валют и сохранение курсов в SharedPreferences
+        if (areRatesLoaded) {
+          _recalculateCurrencies();
+        }
+        _saveRatesToSharedPreferences(result['rates']);
       });
     } catch (e) {
       activateError(
           context, AppLocalizations.of(context)!.exceptionRateFailure);
 
-      Timer(Duration(seconds: 10), () {
+      // Установка таймера для повторного запроса
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 10), () {
         if (!areRatesLoaded) {
           _getRates();
         }
