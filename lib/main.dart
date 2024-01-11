@@ -251,10 +251,24 @@ class _MainScreenState extends State<MainScreen> {
     }
   } // сохранение-загрузка состояния
 
+  Future<void> _loadRatesFromSharedPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ratesString = prefs.getString('rates');
+    if (ratesString != null) {
+      final ratesMap = jsonDecode(ratesString) as Map<String, dynamic>;
+      setState(() {
+        _rates = ratesMap.map<String, double>(
+            (key, value) => MapEntry(key, (value as num).toDouble()));
+        areRatesLoaded = true;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSelectedCurrencies(); // сохранение-загрузка состояния
+    _loadRatesFromSharedPreferences();
     checkInternetConnection().then((hasInternet) {
       setState(() {
         _noInternetConnection = !hasInternet;
@@ -272,23 +286,44 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  Future<void> _getRates() async {
-    String base = baseCurrency;
-    final symbols = _currencies;
+  Future<void> _saveRatesToSharedPreferences(Map<String, dynamic> rates) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('rates', jsonEncode(rates));
+  }
 
+  Future<void> _getRates() async {
+    // print(_currencies);
     try {
-      final result = await getExchangeRates(base, symbols);
+      // Используйте _currencies в качестве списка валют для запроса
+      final result = await getExchangeRates(baseCurrency, _currencies);
       setState(() {
         _rates = result['rates'].map<String, double>((key, value) {
           return MapEntry<String, double>(
               key, value is double ? value : double.parse(value.toString()));
         });
         _lastUpdateTimestamp = result['timestamp'];
-        areRatesLoaded = true; // Обновление флага после загрузки курсов
+        areRatesLoaded = true;
+        setState(() {
+          if (areRatesLoaded) {
+            // Если курсы уже были загружены, выполните перерасчет
+            _recalculateCurrencies();
+          }
+          // Остальной код
+        });
+        setState(() {
+          // Сохранение в SharedPreferences
+          _saveRatesToSharedPreferences(result['rates']);
+        });
       });
     } catch (e) {
       activateError(
           context, AppLocalizations.of(context)!.exceptionRateFailure);
+
+      Timer(Duration(seconds: 10), () {
+        if (!areRatesLoaded) {
+          _getRates();
+        }
+      });
     }
   }
 
@@ -391,7 +426,7 @@ class _MainScreenState extends State<MainScreen> {
                                         // _activeInputIndex = index;
                                         _saveSelectedCurrencies();
                                       });
-                                      await _getRates(); // Обновляем курсы валют
+                                      // await _getRates(); // Обновляем курсы валют
                                       _recalculateCurrencies(); // Пересчитываем значения в полях ввода
                                     },
                                   );
