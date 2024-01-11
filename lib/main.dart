@@ -71,19 +71,34 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
+  MyApp({Key? key}) : super(key: key);
+
   @override
   _MyAppState createState() => _MyAppState();
+
+  static _MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>();
 }
 
 class _MyAppState extends State<MyApp> {
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   String _currentLocale = 'en';
+  Locale _locale =
+      Locale('en'); // Используйте язык по умолчанию, например, английский
+
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
 
   @override
   void initState() {
     super.initState();
     _loadTheme();
+    _loadLocale();
+  }
+
+  void setLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
   }
 
   void changeLocale(String locale) {
@@ -99,6 +114,49 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  void _loadLocale() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String localeCode = prefs.getString('selectedLanguage') ?? 'en';
+    setState(() {
+      _locale = Locale(localeCode); // Инициализация _locale здесь
+    });
+  }
+
+  void setNewLocale(String localeCode) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedLanguage', localeCode);
+    setState(() {
+      _locale = Locale(localeCode);
+    });
+  }
+
+  void changeLanguage() async {
+    showModalBottomSheet(
+      context: navigatorKey.currentState!.context,
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              title: Text('English'),
+              onTap: () {
+                Navigator.pop(context);
+                setNewLocale('en');
+              },
+            ),
+            ListTile(
+              title: Text('Русский'),
+              onTap: () {
+                Navigator.pop(context);
+                setNewLocale('ru');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -109,7 +167,8 @@ class _MyAppState extends State<MyApp> {
             navigatorKey: navigatorKey,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            locale: Locale(_currentLocale),
+            // locale: Locale(_currentLocale),
+            locale: _locale,
             home: MainScreen(
               isDarkMode: _isDarkMode,
               changeLocale: changeLocale,
@@ -151,14 +210,7 @@ class _MainScreenState extends State<MainScreen> {
     prefs.setBool('isDarkMode', isDark);
   }
 
-  // String? _currentLocale;
-  String _currentLocale = 'en'; // Начальная локаль
-
-  // void onLocaleChange(String newLocale) {
-  //   if (widget.onLocaleChange != null) {
-  //     widget.onLocaleChange!(newLocale);
-  //   }
-  // }
+  final String _currentLocale = 'en'; // Начальная локаль
 
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
   final List<String> _currencies = currenciesOrder;
@@ -174,13 +226,6 @@ class _MainScreenState extends State<MainScreen> {
   List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
 
   Map<String, double> _rates = {};
-
-  void _changeLanguage() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String newLocale = _currentLocale == 'en' ? 'ru' : 'en';
-    prefs.setString('selectedLanguage', newLocale);
-    widget.changeLocale(newLocale);
-  }
 
   Future<void> _saveSelectedCurrencies() async {
     final prefs = await SharedPreferences.getInstance();
@@ -201,6 +246,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     // _loadTheme();
+    // _loadLocale();
     _loadSelectedCurrencies(); // сохранение-загрузка состояния
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -215,7 +261,6 @@ class _MainScreenState extends State<MainScreen> {
   bool _noInternetConnection = false;
 
   String selectedCurrency = '';
-  // bool _isLoading = false;
   final List<TextEditingController> _controllers =
       List.generate(6, (i) => TextEditingController());
 
@@ -255,10 +300,9 @@ class _MainScreenState extends State<MainScreen> {
       animation: StyledToastAnimation.slideFromBottomFade,
       position: StyledToastPosition.center,
       duration: const Duration(seconds: 2),
-      // backgroundColor: _isDarkMode.value
-      //                 ? const Color.fromARGB(255, 21, 25, 32)
-      //                 : const Color.fromARGB(255, 92, 145, 113),,
-      textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+      backgroundColor: Colors.grey,
+      textStyle: const TextStyle(
+          fontSize: 14, fontWeight: FontWeight.w400, color: Colors.white),
       curve: Curves.elasticOut,
       reverseCurve: Curves.linear,
     );
@@ -362,7 +406,7 @@ class _MainScreenState extends State<MainScreen> {
                           );
                         },
                         child: Container(
-                          padding: EdgeInsets.all(8.0),
+                          padding: const EdgeInsets.all(8.0),
                           decoration: BoxDecoration(
                             // border: Border.all(color: Colors.grey),
                             borderRadius: BorderRadius.circular(5.0),
@@ -370,7 +414,7 @@ class _MainScreenState extends State<MainScreen> {
                           child: Text(
                             _selectedCurrencies[index],
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 18),
+                            style: const TextStyle(fontSize: 18),
                           ),
                         ),
                       ),
@@ -523,7 +567,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   Text(
                     t.mainInfo,
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
@@ -538,7 +582,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   Text(
                     t.mainTheme,
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
@@ -553,7 +597,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   Text(
                     t.mainUpdate,
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
@@ -561,12 +605,14 @@ class _MainScreenState extends State<MainScreen> {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.language),
-                    onPressed: _changeLanguage,
-                  ),
+                      icon: const Icon(Icons.language),
+                      // onPressed: _changeLanguage,
+                      onPressed: () {
+                        MyApp.of(context)?.changeLanguage();
+                      }),
                   Text(
                     t.mainLang,
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
