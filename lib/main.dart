@@ -11,6 +11,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'curlib.dart';
 
@@ -24,17 +25,19 @@ const String baseCurrency = 'EUR'; // Нужно для новой конвер�
 
 Future<Map<String, dynamic>> getExchangeRates(
     String base, List<String> symbols) async {
+  final apikey = dotenv.env['API_KEY']; // Переместите это сюда
+
+  if (apikey == null) {
+    throw Exception('API ключ не найден.');
+  }
+
   final symbolsParam = symbols.join(',');
   final url =
 
       /// Fixer API (https://apilayer.com/marketplace/fixer-api#pricing)
-      'https://api.apilayer.com/fixer/latest?symbols=$symbolsParam&base=$base'; // API где 100 в мес
+      'https://api.apilayer.com/fixer/latest?symbols=$symbolsParam&base=$base';
 
-  // 'https://api.apilayer.com/exchangerates_data/latest?base=$base&symbols=$symbolsParam'; // API где 250 в мес
-  final headers = {'apikey': 'Ce22Skfg1m7OrpKSV5LhnDL9wRhNhDHE'};
-  // JBzY0tW3H76VayxaW2ylPfaL8nhLwGi3
-  // Ce22Skfg1m7OrpKSV5LhnDL9wRhNhDHE 11.01.2024
-  // UK4FkPA8DyY8PIORlLrHOEXpIr6T5Hnu     // это хз что за ключ
+  final headers = {'apikey': apikey};
 
   final response = await http.get(Uri.parse(url), headers: headers);
 
@@ -60,8 +63,9 @@ Future<bool> checkInternetConnection() async {
   }
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

@@ -48,4 +48,5 @@ app.*.map.json
 curlibEN.json
 curlibRU.json
 
-python_tools/
+tools/
+.env
