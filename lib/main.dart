@@ -81,9 +81,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  // ignore: unused_field
   String _currentLocale = 'en';
   Locale _locale =
-      Locale('en'); // Используйте язык по умолчанию, например, английский
+      const Locale('en'); // Используйте язык по умолчанию, например, английский
 
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
@@ -138,14 +139,14 @@ class _MyAppState extends State<MyApp> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              title: Text('English'),
+              title: const Text('English'),
               onTap: () {
                 Navigator.pop(context);
                 setNewLocale('en');
               },
             ),
             ListTile(
-              title: Text('Русский'),
+              title: const Text('Русский'),
               onTap: () {
                 Navigator.pop(context);
                 setNewLocale('ru');
@@ -200,20 +201,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool areRatesLoaded = false;
-
-  void _toggleTheme() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isDark = !widget.isDarkMode.value;
-    setState(() {
-      widget.isDarkMode.value = isDark;
-    });
-    prefs.setBool('isDarkMode', isDark);
-  }
-
-  final String _currentLocale = 'en'; // Начальная локаль
-
+  int? _lastUpdateTimestamp;
+  int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
   final List<String> _currencies = currenciesOrder;
+  List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
+  Map<String, double> _rates = {};
+  bool _noInternetConnection = false;
+  String selectedCurrency = '';
+
+  final List<TextEditingController> _controllers =
+      List.generate(6, (i) => TextEditingController());
+
+  final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
 
   Map<String, dynamic> getCurrencyNames(String locale) {
     if (locale == 'ru') {
@@ -223,9 +223,14 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
-
-  Map<String, double> _rates = {};
+  void _toggleTheme() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isDark = !widget.isDarkMode.value;
+    setState(() {
+      widget.isDarkMode.value = isDark;
+    });
+    prefs.setBool('isDarkMode', isDark);
+  }
 
   Future<void> _saveSelectedCurrencies() async {
     final prefs = await SharedPreferences.getInstance();
@@ -245,8 +250,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // _loadTheme();
-    // _loadLocale();
     _loadSelectedCurrencies(); // сохранение-загрузка состояния
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -258,20 +261,12 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  bool _noInternetConnection = false;
-
-  String selectedCurrency = '';
-  final List<TextEditingController> _controllers =
-      List.generate(6, (i) => TextEditingController());
-
   @override
   void dispose() {
     _controllers.forEach((controller) => controller.dispose());
     _focusNodes.forEach((node) => node.dispose());
     super.dispose();
   }
-
-  final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
 
   Future<void> _getRates() async {
     String base = baseCurrency;
@@ -308,35 +303,30 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-//---------------------------- время
-  int? _lastUpdateTimestamp;
-
   String formatDate(int timestamp) {
     final dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    // final formattedDate = DateFormat.yMMMMd().add_jm().format(dt);
     final formattedDate = DateFormat('dd.MM.yyyy, HH:mm').format(dt);
     return formattedDate;
   }
 
   void _recalculateCurrencies() {
-    int baseIndex =
-        _controllers.indexWhere((controller) => controller.text.isNotEmpty);
-    if (baseIndex == -1) return; // Не выполняем перерасчёт, если все поля пусты
+    if (_activeInputIndex == -1) return; // Если нет активного ввода, выходим
 
     double baseInputValue =
-        double.tryParse(_controllers[baseIndex].text) ?? 0.0;
-    String baseCurrency = _selectedCurrencies[baseIndex];
+        double.tryParse(_controllers[_activeInputIndex].text) ?? 0.0;
+    String baseCurrency = _selectedCurrencies[_activeInputIndex];
     double baseRate = _rates[baseCurrency] ?? 1.0;
-    double toBaseValue = baseInputValue / baseRate;
 
     for (int i = 0; i < _controllers.length; i++) {
-      if (i != baseIndex) {
+      if (i != _activeInputIndex) {
         String currencyCode = _selectedCurrencies[i];
         double targetRate = _rates[currencyCode] ?? 1.0;
-        double multipliedValue = toBaseValue * targetRate;
-        _controllers[i].text = _formatter.format(multipliedValue);
+        double convertedValue = (baseInputValue / baseRate) * targetRate;
+        _controllers[i].text = _formatter.format(convertedValue);
       }
     }
+
+    _activeInputIndex = -1; // Сброс активного индекса после пересчёта
   }
 
   @override
@@ -394,6 +384,7 @@ class _MainScreenState extends State<MainScreen> {
                                       Navigator.pop(context);
                                       setState(() {
                                         _selectedCurrencies[index] = currency;
+                                        // _activeInputIndex = index;
                                         _saveSelectedCurrencies();
                                       });
                                       await _getRates(); // Обновляем курсы валют
@@ -459,6 +450,8 @@ class _MainScreenState extends State<MainScreen> {
                             border: InputBorder.none,
                           ),
                           onChanged: (value) {
+                            _activeInputIndex =
+                                index; // Установка индекса активного поля ввода
                             String numericValue =
                                 value.replaceAll(RegExp(r'[^\d\s?\.?]'), '');
                             double inputValue =
