@@ -137,26 +137,32 @@ class _MyAppState extends State<MyApp> {
 
   void changeLanguage() async {
     showModalBottomSheet(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
       context: navigatorKey.currentState!.context,
       builder: (BuildContext context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              title: const Text('English'),
-              onTap: () {
-                Navigator.pop(context);
-                setNewLocale('en');
-              },
-            ),
-            ListTile(
-              title: const Text('Русский'),
-              onTap: () {
-                Navigator.pop(context);
-                setNewLocale('ru');
-              },
-            ),
-          ],
+        return SizedBox(
+          height: 200, // Укажите желаемую высоту
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                title: const Text('English'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setNewLocale('en');
+                },
+              ),
+              ListTile(
+                title: const Text('Русский'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setNewLocale('ru');
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -193,6 +199,81 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+class CurrencySearchSheet extends StatefulWidget {
+  final List<String> currencyList;
+  final Map<String, String> currencyNames;
+  final Function(String) onSelectCurrency;
+
+  CurrencySearchSheet({
+    Key? key,
+    required this.currencyList,
+    required this.currencyNames,
+    required this.onSelectCurrency,
+  }) : super(key: key);
+
+  @override
+  _CurrencySearchSheetState createState() => _CurrencySearchSheetState();
+}
+
+class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
+  TextEditingController searchController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(18.0),
+          child: TextField(
+            controller: searchController,
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.mainSearch,
+
+              suffixIcon: searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          searchController.clear();
+                        });
+                      },
+                    )
+                  : null,
+
+              // suffixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                borderSide:
+                    BorderSide.lerp(const BorderSide(), const BorderSide(), 1),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            children: widget.currencyList
+                .where((currency) => widget.currencyNames[currency]!
+                    .toLowerCase()
+                    .contains(searchController.text.toLowerCase()))
+                .map((String currency) {
+              return ListTile(
+                title: Text('${widget.currencyNames[currency]} ($currency)'),
+                onTap: () {
+                  widget.onSelectCurrency(currency);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class MainScreen extends StatefulWidget {
   final ValueNotifier<bool> isDarkMode;
   final Function(String) changeLocale;
@@ -208,22 +289,32 @@ class _MainScreenState extends State<MainScreen> {
   int? _lastUpdateTimestamp;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
-  final List<String> _currencies = currenciesOrder;
+  // final List<String> _currencies = currenciesOrderEN;
   List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
   Map<String, double> _rates = {};
   bool _noInternetConnection = false;
   String selectedCurrency = '';
+  TextEditingController searchController = TextEditingController();
 
   final List<TextEditingController> _controllers =
       List.generate(6, (i) => TextEditingController());
 
   final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
 
-  Map<String, dynamic> getCurrencyNames(String locale) {
+  Map<String, String> getCurrencyNames(String locale) {
+    Map<String, dynamic> selectedMap = (locale == 'ru') ? aliasesRU : aliasesEN;
+
+    return selectedMap.map((key, value) {
+      // Убедитесь, что значение является строкой, иначе верните пустую строку или любое другое подходящее значение
+      return MapEntry(key, value.toString());
+    });
+  }
+
+  List<String> getCurrencyList(String locale) {
     if (locale == 'ru') {
-      return aliasesRU;
+      return currenciesOrderRU;
     } else {
-      return aliasesEN;
+      return currenciesOrderEN;
     }
   }
 
@@ -296,7 +387,9 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _getRates() async {
     try {
-      final result = await getExchangeRates(baseCurrency, _currencies);
+      // final result = await getExchangeRates(baseCurrency, _currencies);
+      final result = await getExchangeRates(baseCurrency,
+          getCurrencyList(Localizations.localeOf(context).languageCode));
       setState(() {
         _rates = result['rates'].map<String, double>((key, value) =>
             MapEntry<String, double>(
@@ -369,7 +462,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     // _currentLocale = Localizations.localeOf(context).languageCode;
     String locale = Localizations.localeOf(context).languageCode;
-    Map<String, dynamic> currencyNames = getCurrencyNames(locale);
+    Map<String, String> currencyNames = getCurrencyNames(locale);
 
     var t = AppLocalizations.of(context)!;
 
@@ -410,24 +503,21 @@ class _MainScreenState extends State<MainScreen> {
                         onTap: () {
                           showModalBottomSheet(
                             context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(10.0)),
+                            ),
                             builder: (BuildContext context) {
-                              return ListView(
-                                children: _currencies.map((String currency) {
-                                  return ListTile(
-                                    title: Text(
-                                        '${currencyNames[currency]} ($currency)'),
-                                    onTap: () async {
-                                      Navigator.pop(context);
-                                      setState(() {
-                                        _selectedCurrencies[index] = currency;
-                                        // _activeInputIndex = index;
-                                        _saveSelectedCurrencies();
-                                      });
-                                      // await _getRates(); // Обновляем курсы валют
-                                      _recalculateCurrencies(); // Пересчитываем значения в полях ввода
-                                    },
-                                  );
-                                }).toList(),
+                              return CurrencySearchSheet(
+                                currencyList: getCurrencyList(locale),
+                                currencyNames: currencyNames,
+                                onSelectCurrency: (currency) {
+                                  setState(() {
+                                    _selectedCurrencies[index] = currency;
+                                    _saveSelectedCurrencies();
+                                  });
+                                  _recalculateCurrencies();
+                                },
                               );
                             },
                           );
@@ -526,7 +616,7 @@ class _MainScreenState extends State<MainScreen> {
                       },
                       child: const Padding(
                         padding: EdgeInsets.all(10.0),
-                        child: Icon(Icons.close, size: 18.0),
+                        child: Icon(Icons.close, size: 24.0),
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -575,7 +665,7 @@ class _MainScreenState extends State<MainScreen> {
                                       },
                                   ),
                                   const TextSpan(
-                                    text: " \n \n \n v. 0.2.0 (Beta)",
+                                    text: " \n \n \n v. 0.0.3 (Beta)",
                                   ),
                                 ],
                               ),

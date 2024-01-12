@@ -10,5 +10,6 @@
     "mainRatesLoading": "Loading exchange rates...",
     "mainDisclamer1": "Simple currency converter created for your convenience.\n \nFor any questions feel free to ",
     "mainDiclamer2": "mail me!",
-    "mainAbout": "About"
+    "mainAbout": "About",
+    "mainSearch": "Search"
 }
