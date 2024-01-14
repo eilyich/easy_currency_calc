@@ -290,9 +290,7 @@ class _MainScreenState extends State<MainScreen> {
   int? _lastUpdateTimestamp;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
-  // final List<String> _currencies = currenciesOrderEN;
-  List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'ILS', 'KZT', 'GEL'];
-  // List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
+  List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focusNodes = [];
   Map<String, double> _rates = {};
@@ -300,11 +298,6 @@ class _MainScreenState extends State<MainScreen> {
   String selectedCurrency = '';
   TextEditingController searchController = TextEditingController();
   bool _isInitialized = false;
-
-  // final List<TextEditingController> _controllers =
-  //     List.generate(6, (i) => TextEditingController());
-
-  // final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
 
   Map<String, String> getCurrencyNames(String locale) {
     Map<String, dynamic> selectedMap = (locale == 'ru') ? aliasesRU : aliasesEN;
@@ -372,7 +365,6 @@ class _MainScreenState extends State<MainScreen> {
 
   void _addCurrencyField() {
     if (_selectedCurrencies.length >= 20) {
-      // Если достигнуто максимальное количество строк, не добавляем новые
       return;
     }
 
@@ -395,6 +387,7 @@ class _MainScreenState extends State<MainScreen> {
               _focusNodes.add(FocusNode());
             });
             _updateCurrencyFields();
+            _saveSelectedCurrencies(); // Сохраняем изменения в SharedPreferences
           },
         );
       },
@@ -410,25 +403,32 @@ class _MainScreenState extends State<MainScreen> {
       _focusNodes.removeAt(index);
     });
     _updateCurrencyFields(); // Обновляем после удаления поля
+    _saveSelectedCurrencies(); // Сохраняем изменения в SharedPreferences
   }
 
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((prefs) {
-      int numFields = prefs.getInt('numFields') ?? 6;
-      _selectedCurrencies = List.generate(
-          numFields,
-          (index) => index < _selectedCurrencies.length
-              ? _selectedCurrencies[index]
-              : 'EUR');
-      _controllers = List.generate(numFields, (_) => TextEditingController());
-      _focusNodes = List.generate(numFields, (_) => FocusNode());
+      // Загружаем сохраненный список валют
+      List<String> loadedCurrencies =
+          prefs.getStringList('selectedCurrencies') ??
+              ['USD', 'EUR', 'RUB', 'CNY'];
+
+      // Инициализируем _selectedCurrencies сохраненными данными
+      _selectedCurrencies = loadedCurrencies;
+
+      // Инициализируем контроллеры и фокусы для каждой валюты
+      _controllers = List.generate(
+          _selectedCurrencies.length, (_) => TextEditingController());
+      _focusNodes =
+          List.generate(_selectedCurrencies.length, (_) => FocusNode());
+
       setState(() {
-        _isInitialized =
-            true; // Установка флага в true после завершения инициализации
+        _isInitialized = true;
       });
     });
+
     _loadRatesFromSharedPreferences();
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -562,7 +562,7 @@ class _MainScreenState extends State<MainScreen> {
           Expanded(
             child: _isInitialized
                 ? ListView.builder(
-                    itemCount: _selectedCurrencies.length + 1,
+                    itemCount: _selectedCurrencies.length + 2,
                     itemBuilder: (context, index) {
                       if (index == _selectedCurrencies.length) {
                         if (_selectedCurrencies.length >= 20) {
@@ -574,11 +574,130 @@ class _MainScreenState extends State<MainScreen> {
                         } else {
                           return Center(
                             child: IconButton(
-                              icon: const Icon(Icons.add),
+                              icon: const Icon(
+                                Icons.add_rounded,
+                                size: 32,
+                              ),
                               onPressed: _addCurrencyField,
                             ),
                           );
                         }
+                      } else if (index == _selectedCurrencies.length + 1) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: SizedBox(
+                            height: 120,
+                            child: Row(
+                              // mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.info),
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text(t.mainAbout),
+                                            content: SingleChildScrollView(
+                                              child: Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    TextSpan(
+                                                      text: t.mainDisclamer1,
+                                                    ),
+                                                    TextSpan(
+                                                      text: t.mainDiclamer2,
+                                                      style: const TextStyle(
+                                                          color: Colors.blue),
+                                                      recognizer:
+                                                          TapGestureRecognizer()
+                                                            ..onTap = () async {
+                                                              const url =
+                                                                  'mailto:evgenyprudovsky@gmail.com';
+                                                              // ignore: deprecated_member_use
+                                                              await launch(url);
+                                                            },
+                                                    ),
+                                                    const TextSpan(
+                                                      text:
+                                                          " \n \n \n v. 0.0.4 (Beta)",
+                                                    ),
+                                                  ],
+                                                ),
+                                                style: const TextStyle(
+                                                    fontSize: 18),
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                },
+                                                child: const Text("ОК"),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    Text(
+                                      t.mainInfo,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(widget.isDarkMode.value
+                                          ? Icons.nights_stay
+                                          : Icons.wb_sunny),
+                                      onPressed: _toggleTheme,
+                                    ),
+                                    Text(
+                                      t.mainTheme,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.currency_exchange),
+                                      onPressed: () {
+                                        _getRates();
+                                      },
+                                    ),
+                                    Text(
+                                      t.mainUpdate,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    IconButton(
+                                        icon: const Icon(Icons.language),
+                                        // onPressed: _changeLanguage,
+                                        onPressed: () {
+                                          MyApp.of(context)?.changeLanguage();
+                                        }),
+                                    Text(
+                                      t.mainLang,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       }
                       String currencyCode = _selectedCurrencies[index];
                       String currencyName =
@@ -586,7 +705,7 @@ class _MainScreenState extends State<MainScreen> {
                       if (index < _controllers.length) {
                         return Row(
                           children: [
-                            const SizedBox(width: 20),
+                            // const SizedBox(width: 20),
                             // Expanded(
                             // child:
                             SizedBox(
@@ -730,7 +849,7 @@ class _MainScreenState extends State<MainScreen> {
                               },
                               child: const Padding(
                                 padding: EdgeInsets.all(10.0),
-                                child: Icon(Icons.close, size: 24.0),
+                                child: Icon(Icons.close_rounded, size: 26.0),
                               ),
                             ),
                             // const SizedBox(width: 20),
@@ -738,7 +857,8 @@ class _MainScreenState extends State<MainScreen> {
                               onTap: () => _removeCurrencyField(index),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 10.0),
-                                child: Icon(Icons.delete, size: 24.0),
+                                child: Icon(Icons.delete_outline_rounded,
+                                    size: 26.0),
                               ),
                             ),
                           ],
@@ -750,119 +870,7 @@ class _MainScreenState extends State<MainScreen> {
                   )
                 : const CircularProgressIndicator(),
           ),
-          // SizedBox(height: 0),
         ],
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
-        child: SizedBox(
-          height: 100,
-          child: Row(
-            // mainAxisAlignment: MainAxisAlignment.spaceAround,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.info),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(t.mainAbout),
-                          content: SingleChildScrollView(
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: t.mainDisclamer1,
-                                  ),
-                                  TextSpan(
-                                    text: t.mainDiclamer2,
-                                    style: const TextStyle(color: Colors.blue),
-                                    recognizer: TapGestureRecognizer()
-                                      ..onTap = () async {
-                                        const url =
-                                            'mailto:evgenyprudovsky@gmail.com';
-                                        // ignore: deprecated_member_use
-                                        await launch(url);
-                                      },
-                                  ),
-                                  const TextSpan(
-                                    text: " \n \n \n v. 0.0.4 (Beta)",
-                                  ),
-                                ],
-                              ),
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              child: const Text("ОК"),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  Text(
-                    t.mainInfo,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  IconButton(
-                    icon: Icon(widget.isDarkMode.value
-                        ? Icons.nights_stay
-                        : Icons.wb_sunny),
-                    onPressed: _toggleTheme,
-                  ),
-                  Text(
-                    t.mainTheme,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.currency_exchange),
-                    onPressed: () {
-                      _getRates();
-                    },
-                  ),
-                  Text(
-                    t.mainUpdate,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  IconButton(
-                      icon: const Icon(Icons.language),
-                      // onPressed: _changeLanguage,
-                      onPressed: () {
-                        MyApp.of(context)?.changeLanguage();
-                      }),
-                  Text(
-                    t.mainLang,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
