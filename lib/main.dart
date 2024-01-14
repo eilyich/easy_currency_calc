@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -223,7 +224,7 @@ class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(18.0),
+          padding: const EdgeInsets.all(8.0),
           child: TextField(
             controller: searchController,
             decoration: InputDecoration(
@@ -290,16 +291,20 @@ class _MainScreenState extends State<MainScreen> {
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
   // final List<String> _currencies = currenciesOrderEN;
-  List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
+  List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'ILS', 'KZT', 'GEL'];
+  // List<String> _selectedCurrencies = ['RUB', 'USD', 'EUR', 'ILS', 'KZT', 'GEL'];
+  List<TextEditingController> _controllers = [];
+  List<FocusNode> _focusNodes = [];
   Map<String, double> _rates = {};
   bool _noInternetConnection = false;
   String selectedCurrency = '';
   TextEditingController searchController = TextEditingController();
+  bool _isInitialized = false;
 
-  final List<TextEditingController> _controllers =
-      List.generate(6, (i) => TextEditingController());
+  // final List<TextEditingController> _controllers =
+  //     List.generate(6, (i) => TextEditingController());
 
-  final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
+  // final List<FocusNode> _focusNodes = List.generate(6, (i) => FocusNode());
 
   Map<String, String> getCurrencyNames(String locale) {
     Map<String, dynamic> selectedMap = (locale == 'ru') ? aliasesRU : aliasesEN;
@@ -355,10 +360,75 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  void _updateCurrencyFields() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setInt('numFields', _selectedCurrencies.length);
+      _controllers = List.generate(
+          _selectedCurrencies.length, (_) => TextEditingController());
+      _focusNodes =
+          List.generate(_selectedCurrencies.length, (_) => FocusNode());
+    });
+  }
+
+  void _addCurrencyField() {
+    if (_selectedCurrencies.length >= 20) {
+      // Если достигнуто максимальное количество строк, не добавляем новые
+      return;
+    }
+
+    String locale = Localizations.localeOf(context).languageCode;
+    Map<String, String> currencyNames = getCurrencyNames(locale);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
+      ),
+      builder: (BuildContext context) {
+        return CurrencySearchSheet(
+          currencyList: getCurrencyList(locale),
+          currencyNames: currencyNames,
+          onSelectCurrency: (currency) {
+            setState(() {
+              _selectedCurrencies.add(currency); // Добавляем выбранную валюту
+              _controllers.add(TextEditingController());
+              _focusNodes.add(FocusNode());
+            });
+            _updateCurrencyFields();
+          },
+        );
+      },
+    );
+  }
+
+  void _removeCurrencyField(int index) {
+    setState(() {
+      _selectedCurrencies.removeAt(index);
+      _controllers[index].dispose();
+      _controllers.removeAt(index);
+      _focusNodes[index].dispose();
+      _focusNodes.removeAt(index);
+    });
+    _updateCurrencyFields(); // Обновляем после удаления поля
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadSelectedCurrencies(); // сохранение-загрузка состояния
+    SharedPreferences.getInstance().then((prefs) {
+      int numFields = prefs.getInt('numFields') ?? 6;
+      _selectedCurrencies = List.generate(
+          numFields,
+          (index) => index < _selectedCurrencies.length
+              ? _selectedCurrencies[index]
+              : 'EUR');
+      _controllers = List.generate(numFields, (_) => TextEditingController());
+      _focusNodes = List.generate(numFields, (_) => FocusNode());
+      setState(() {
+        _isInitialized =
+            true; // Установка флага в true после завершения инициализации
+      });
+    });
     _loadRatesFromSharedPreferences();
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -446,7 +516,8 @@ class _MainScreenState extends State<MainScreen> {
     String baseCurrency = _selectedCurrencies[_activeInputIndex];
     double baseRate = _rates[baseCurrency] ?? 1.0;
 
-    for (int i = 0; i < _controllers.length; i++) {
+    int minSize = min(_controllers.length, _selectedCurrencies.length);
+    for (int i = 0; i < minSize; i++) {
       if (i != _activeInputIndex) {
         String currencyCode = _selectedCurrencies[i];
         double targetRate = _rates[currencyCode] ?? 1.0;
@@ -470,7 +541,7 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(centerTitle: true, title: const Text('EASY  CONVERTER')),
       body: Column(
         children: [
-          const SizedBox(height: 35),
+          const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -487,149 +558,203 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 30),
+          // const SizedBox(height: 30),
           Expanded(
-            child: ListView.builder(
-              itemCount: 6,
-              itemBuilder: (context, index) {
-                return Row(
-                  children: [
-                    const SizedBox(width: 20),
-                    // Expanded(
-                    // child:
-                    SizedBox(
-                      width: 80,
-                      child: InkWell(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(10.0)),
+            child: _isInitialized
+                ? ListView.builder(
+                    itemCount: _selectedCurrencies.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == _selectedCurrencies.length) {
+                        if (_selectedCurrencies.length >= 20) {
+                          return Center(
+                              child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Text(t.exceptionMaximumRows),
+                          ));
+                        } else {
+                          return Center(
+                            child: IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: _addCurrencyField,
                             ),
-                            builder: (BuildContext context) {
-                              return CurrencySearchSheet(
-                                currencyList: getCurrencyList(locale),
-                                currencyNames: currencyNames,
-                                onSelectCurrency: (currency) {
-                                  setState(() {
-                                    _selectedCurrencies[index] = currency;
-                                    _saveSelectedCurrencies();
-                                  });
-                                  _recalculateCurrencies();
-                                },
-                              );
-                            },
                           );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            // border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          child: Text(
-                            _selectedCurrencies[index],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                          style: const TextStyle(
-                            fontSize: 26,
-                          ),
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          // enabled: _rates[_selectedCurrencies[index]] !=
-                          //     null, // rates loading control
-                          enabled: areRatesLoaded,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d+\.?\d{0,2}')),
-                            TextInputFormatter.withFunction(
-                                (oldValue, newValue) {
-                              if (newValue.text.startsWith('0') &&
-                                  newValue.text.length > 1 &&
-                                  newValue.text[1] != '.') {
-                                return TextEditingValue(
-                                  text: newValue.text.substring(1),
-                                  selection: newValue.selection.copyWith(
-                                      baseOffset:
-                                          newValue.selection.baseOffset - 1,
-                                      extentOffset:
-                                          newValue.selection.extentOffset - 1),
-                                );
-                              }
-                              return newValue;
-                            }),
-                          ],
-                          decoration: const InputDecoration(
-                            hintText: '0',
-                            border: InputBorder.none,
-                          ),
-                          onChanged: (value) {
-                            _activeInputIndex =
-                                index; // Установка индекса активного поля ввода
-                            String numericValue =
-                                value.replaceAll(RegExp(r'[^\d\s?\.?]'), '');
-                            double inputValue =
-                                double.tryParse(numericValue) ?? 0.0;
-                            String selectedCurrency =
-                                _selectedCurrencies[index];
-                            for (int i = 0; i < 6; i++) {
-                              if (i != index) {
-                                String currencyCode = _selectedCurrencies[i];
-                                double baseRate = _rates[selectedCurrency] ?? 1;
-                                double toBaseValue = inputValue / baseRate;
-                                double targetRate = _rates[currencyCode] ?? 1;
-                                double multipliedValue =
-                                    toBaseValue * targetRate;
-                                String formattedValue =
-                                    _formatter.format(multipliedValue);
-                                _controllers[i].text = formattedValue;
-                              }
-                            }
-                            setState(() {
-                              _selectedCurrencies[index] = selectedCurrency;
-                            });
-                          },
-                          onTap: () {
-                            _focusNodes[index].addListener(() {
-                              if (_focusNodes[index].hasFocus) {}
-                            });
-                          }),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () {
-                        for (final controller in _controllers) {
-                          controller.clear();
                         }
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.all(10.0),
-                        child: Icon(Icons.close, size: 24.0),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                  ],
-                );
-              },
-            ),
+                      }
+                      String currencyCode = _selectedCurrencies[index];
+                      String currencyName =
+                          currencyNames[currencyCode] ?? currencyCode;
+                      if (index < _controllers.length) {
+                        return Row(
+                          children: [
+                            const SizedBox(width: 20),
+                            // Expanded(
+                            // child:
+                            SizedBox(
+                              width: 65,
+                              child: InkWell(
+                                onTap: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(10.0)),
+                                    ),
+                                    builder: (BuildContext context) {
+                                      return CurrencySearchSheet(
+                                        currencyList: getCurrencyList(locale),
+                                        currencyNames: currencyNames,
+                                        onSelectCurrency: (currency) {
+                                          setState(() {
+                                            _selectedCurrencies[index] =
+                                                currency;
+                                            _saveSelectedCurrencies();
+                                          });
+                                          _recalculateCurrencies();
+                                        },
+                                      );
+                                    },
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    // border: Border.all(color: Colors.grey),
+                                    borderRadius: BorderRadius.circular(5.0),
+                                  ),
+                                  child: Text(
+                                    _selectedCurrencies[index],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                  ),
+                                  controller: _controllers[index],
+                                  focusNode: _focusNodes[index],
+                                  enabled: areRatesLoaded,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true, signed: true),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'^\d+\.?\d{0,2}')),
+                                    TextInputFormatter.withFunction(
+                                        (oldValue, newValue) {
+                                      if (newValue.text.startsWith('0') &&
+                                          newValue.text.length > 1 &&
+                                          newValue.text[1] != '.') {
+                                        return TextEditingValue(
+                                          text: newValue.text.substring(1),
+                                          selection: newValue.selection
+                                              .copyWith(
+                                                  baseOffset: newValue.selection
+                                                          .baseOffset -
+                                                      1,
+                                                  extentOffset: newValue
+                                                          .selection
+                                                          .extentOffset -
+                                                      1),
+                                        );
+                                      }
+                                      return newValue;
+                                    }),
+                                  ],
+                                  decoration: InputDecoration(
+                                    // hintText: currencyName,
+                                    labelText: currencyName,
+                                    border: InputBorder.none,
+                                    labelStyle: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                      // color: Theme.of(context).brightness ==
+                                      //         Brightness.dark
+                                      //     ? Colors
+                                      //         .black12 // Цвет для темной темы
+                                      //     : Colors
+                                      //         .white12, // Цвет для светлой темы
+                                    ),
+                                  ),
+                                  onChanged: (value) {
+                                    _activeInputIndex =
+                                        index; // Установка индекса активного поля ввода
+                                    String numericValue = value.replaceAll(
+                                        RegExp(r'[^\d\s?\.?]'), '');
+                                    double inputValue =
+                                        double.tryParse(numericValue) ?? 0.0;
+                                    String selectedCurrency =
+                                        _selectedCurrencies[index];
+                                    for (int i = 0;
+                                        i < _selectedCurrencies.length;
+                                        i++) {
+                                      if (i != index) {
+                                        String currencyCode =
+                                            _selectedCurrencies[i];
+                                        double baseRate =
+                                            _rates[selectedCurrency] ?? 1;
+                                        double toBaseValue =
+                                            inputValue / baseRate;
+                                        double targetRate =
+                                            _rates[currencyCode] ?? 1;
+                                        double multipliedValue =
+                                            toBaseValue * targetRate;
+                                        String formattedValue =
+                                            _formatter.format(multipliedValue);
+                                        _controllers[i].text = formattedValue;
+                                      }
+                                    }
+                                    setState(() {
+                                      _selectedCurrencies[index] =
+                                          selectedCurrency;
+                                    });
+                                  },
+                                  onTap: () {
+                                    _focusNodes[index].addListener(() {
+                                      if (_focusNodes[index].hasFocus) {}
+                                    });
+                                  }),
+                            ),
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () {
+                                for (final controller in _controllers) {
+                                  controller.clear();
+                                }
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(10.0),
+                                child: Icon(Icons.close, size: 24.0),
+                              ),
+                            ),
+                            // const SizedBox(width: 20),
+                            GestureDetector(
+                              onTap: () => _removeCurrencyField(index),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10.0),
+                                child: Icon(Icons.delete, size: 24.0),
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        return Container();
+                      }
+                    },
+                  )
+                : const CircularProgressIndicator(),
           ),
           // SizedBox(height: 0),
         ],
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 150),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 100),
         child: SizedBox(
           height: 100,
           child: Row(
@@ -665,7 +790,7 @@ class _MainScreenState extends State<MainScreen> {
                                       },
                                   ),
                                   const TextSpan(
-                                    text: " \n \n \n v. 0.0.3 (Beta)",
+                                    text: " \n \n \n v. 0.0.4 (Beta)",
                                   ),
                                 ],
                               ),

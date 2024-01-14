@@ -11,5 +11,6 @@
     "mainDisclamer1": "Simple currency converter created for your convenience.\n \nFor any questions feel free to ",
     "mainDiclamer2": "mail me!",
     "mainAbout": "About",
-    "mainSearch": "Search"
+    "mainSearch": "Search",
+    "exceptionMaximumRows": "Row number limit reached"
 }
