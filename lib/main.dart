@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+// import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -389,7 +389,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onChanged(String value) {
-    bool areAllEmpty = true;
+    // bool areAllEmpty = true;
+    bool areAllEmpty =
+        _controllers.every((controller) => controller.text.isEmpty);
     for (var controller in _controllers) {
       if (controller.text.isNotEmpty) {
         areAllEmpty = false;
@@ -713,7 +715,9 @@ class _MainScreenState extends State<MainScreen> {
                               : Colors.black26),
                 ),
                 onChanged: (value) {
+                  _onChanged(value);
                   bool areAllEmpty = true;
+
                   for (var controller in _controllers) {
                     if (controller.text.isNotEmpty) {
                       areAllEmpty = false;
@@ -882,7 +886,7 @@ class _MainScreenState extends State<MainScreen> {
               height: 60,
             ),
             const Text(
-              "v 0.0.5 (Beta)",
+              "v 0.1.0 (Beta)",
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(
