@@ -270,7 +270,6 @@ class _MainScreenState extends State<MainScreen> {
   int? _lastUpdateTimestamp;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
-  String _currentLanguageCode = 'EN';
   List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focusNodes = [];
@@ -483,6 +482,17 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  void _recalculateCurrency(int index) {
+    String currencyCode = _selectedCurrencies[index];
+    double rate = _rates[currencyCode] ?? 1.0;
+    double baseValue = double.tryParse(_controllers[0].text) ?? 0.0;
+    double convertedValue = baseValue * rate;
+
+    setState(() {
+      _controllers[index].text = _formatter.format(convertedValue);
+    });
+  }
+
   void _clearAllFields() {
     for (final controller in _controllers) {
       controller.clear();
@@ -541,11 +551,244 @@ class _MainScreenState extends State<MainScreen> {
     _activeInputIndex = -1; // Сброс активного индекса после пересчёта
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // _currentLocale = Localizations.localeOf(context).languageCode;
+  void _recalculateCurrenciesAfterReorder() {
+    if (_selectedCurrencies.isEmpty ||
+        _controllers.isEmpty ||
+        _activeInputIndex < 0 ||
+        _activeInputIndex >= _controllers.length) return;
+
+    double baseInputValue =
+        double.tryParse(_controllers[_activeInputIndex].text) ?? 0.0;
+    String baseCurrency = _selectedCurrencies[_activeInputIndex];
+
+    for (int i = 0; i < _selectedCurrencies.length; i++) {
+      if (i != _activeInputIndex) {
+        String currencyCode = _selectedCurrencies[i];
+        double targetRate = _rates[currencyCode] ?? 1.0;
+        double baseRate = _rates[baseCurrency] ?? 1.0;
+        double convertedValue = (baseInputValue / baseRate) * targetRate;
+
+        setState(() {
+          _controllers[i].text = _formatter.format(convertedValue);
+        });
+      }
+    }
+  }
+
+  void handleReorder(int oldIndex, int newIndex) {
+    if (!_isEditMode) {
+      return;
+    }
+
+    // Проверка на перемещение элемента добавления валюты
+    if (oldIndex == _selectedCurrencies.length ||
+        newIndex > _selectedCurrencies.length) {
+      return;
+    }
+
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    setState(() {
+      final item = _selectedCurrencies.removeAt(oldIndex);
+      _selectedCurrencies.insert(newIndex, item);
+    });
+
+    _recalculateCurrenciesAfterReorder();
+  }
+
+  Widget _buildListItem(BuildContext context, int index) {
     String locale = Localizations.localeOf(context).languageCode;
     Map<String, String> currencyNames = getCurrencyNames(locale);
+
+    var t = AppLocalizations.of(context)!;
+
+    final key = ValueKey('currency_$index');
+    if (index == _selectedCurrencies.length) {
+      if (_selectedCurrencies.length >= 20) {
+        return Center(
+            key: const ValueKey('maxRowsMessage'),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Text(t.exceptionMaximumRows),
+            ));
+      } else {
+        return // Row(children: [
+            Center(
+          key: const ValueKey('addCurrencyButton'),
+          child: IconButton(
+            icon: const Icon(
+              Icons.add_rounded,
+              size: 32,
+            ),
+            onPressed: _addCurrencyField,
+          ),
+        );
+      }
+    } else if (index < _controllers.length) {
+      String currencyCode = _selectedCurrencies[index];
+      String currencyName = currencyNames[currencyCode] ?? currencyCode;
+      return Row(
+        key: key,
+        children: [
+          SizedBox(
+            width: 65,
+            child: InkWell(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(10.0)),
+                  ),
+                  builder: (BuildContext context) {
+                    return CurrencySearchSheet(
+                      currencyList: getCurrencyList(locale),
+                      currencyNames: currencyNames,
+                      onSelectCurrency: (currency) {
+                        setState(() {
+                          _selectedCurrencies[index] = currency;
+                          _saveSelectedCurrencies();
+                        });
+                        _recalculateCurrencies();
+                      },
+                    );
+                  },
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5.0),
+                ),
+                child: Text(
+                  _selectedCurrencies[index],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+          ),
+          // ),
+          // const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: TextField(
+                style: const TextStyle(
+                  fontSize: 26,
+                ),
+                controller: _controllers[index],
+                focusNode: _focusNodes[index],
+                enabled: areRatesLoaded && !_isEditMode,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    if (newValue.text.startsWith('0') &&
+                        newValue.text.length > 1 &&
+                        newValue.text[1] != '.') {
+                      return TextEditingValue(
+                        text: newValue.text.substring(1),
+                        selection: newValue.selection.copyWith(
+                            baseOffset: newValue.selection.baseOffset - 1,
+                            extentOffset: newValue.selection.extentOffset - 1),
+                      );
+                    }
+                    return newValue;
+                  }),
+                ],
+                decoration: InputDecoration(
+                  labelText: currencyName,
+                  border: InputBorder.none,
+                  labelStyle: TextStyle(
+                      fontSize: 14,
+                      color: widget.isDarkMode.value
+                          ? _isEditMode
+                              ? Colors.black12
+                              : Colors.white24
+                          : _isEditMode
+                              ? Colors.white
+                              : Colors.black26),
+                ),
+                onChanged: (value) {
+                  bool areAllEmpty = true;
+                  for (var controller in _controllers) {
+                    if (controller.text.isNotEmpty) {
+                      areAllEmpty = false;
+                      break;
+                    }
+                  }
+                  setState(() {
+                    _areFieldsEmpty = areAllEmpty;
+                  });
+                  _activeInputIndex =
+                      index; // Установка индекса активного поля ввода
+                  String numericValue =
+                      value.replaceAll(RegExp(r'[^\d\s?\.?]'), '');
+                  double inputValue = double.tryParse(numericValue) ?? 0.0;
+                  String selectedCurrency = _selectedCurrencies[index];
+                  for (int i = 0; i < _selectedCurrencies.length; i++) {
+                    if (i != index) {
+                      String currencyCode = _selectedCurrencies[i];
+                      double baseRate = _rates[selectedCurrency] ?? 1;
+                      double toBaseValue = inputValue / baseRate;
+                      double targetRate = _rates[currencyCode] ?? 1;
+                      double multipliedValue = toBaseValue * targetRate;
+                      String formattedValue =
+                          _formatter.format(multipliedValue);
+                      _controllers[i].text = formattedValue;
+                    }
+                  }
+                  setState(() {
+                    _selectedCurrencies[index] = selectedCurrency;
+                  });
+                  _checkIfFieldsAreEmpty();
+                },
+                onTap: () {
+                  _focusNodes[index].addListener(() {
+                    if (_focusNodes[index].hasFocus) {}
+                  });
+                }),
+          ),
+          _isEditMode
+              ? GestureDetector(
+                  onTap: () => _removeCurrencyField(index),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10.0),
+                    child: Icon(Icons.delete_outline_rounded, size: 26.0),
+                  ),
+                )
+              : GestureDetector(
+                  onTap: _clearAllFields,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10.0),
+                    child: Icon(Icons.close_rounded, size: 26.0),
+                  ),
+                ),
+          _isEditMode
+              ? const SizedBox(
+                  width: 10,
+                )
+              : Container(),
+          _isEditMode
+              ? const Padding(
+                  padding: EdgeInsets.all(10.0),
+                  child: Icon(Icons.drag_indicator_outlined))
+              : Container(),
+        ],
+      );
+    } else {
+      return Container(
+        key: const ValueKey('EmergencyContainer'),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String locale = Localizations.localeOf(context).languageCode;
 
     var t = AppLocalizations.of(context)!;
 
@@ -715,229 +958,16 @@ class _MainScreenState extends State<MainScreen> {
           ),
           Expanded(
             child: _isInitialized
-                ? ReorderableListView.builder(
-                    itemCount: _selectedCurrencies.length + 1,
-                    itemBuilder: (context, index) {
-                      final key = ValueKey('currency_$index');
-                      if (index == _selectedCurrencies.length) {
-                        if (_selectedCurrencies.length >= 20) {
-                          return Center(
-                              key: const ValueKey('maxRowsMessage'),
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Text(t.exceptionMaximumRows),
-                              ));
-                        } else {
-                          return // Row(children: [
-                              Center(
-                            key: const ValueKey('addCurrencyButton'),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.add_rounded,
-                                size: 32,
-                              ),
-                              onPressed: _addCurrencyField,
-                            ),
-                          );
-                        }
-                      } else if (index < _controllers.length) {
-                        String currencyCode = _selectedCurrencies[index];
-                        String currencyName =
-                            currencyNames[currencyCode] ?? currencyCode;
-                        return Row(
-                          key: key,
-                          children: [
-                            SizedBox(
-                              width: 65,
-                              child: InkWell(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(10.0)),
-                                    ),
-                                    builder: (BuildContext context) {
-                                      return CurrencySearchSheet(
-                                        currencyList: getCurrencyList(locale),
-                                        currencyNames: currencyNames,
-                                        onSelectCurrency: (currency) {
-                                          setState(() {
-                                            _selectedCurrencies[index] =
-                                                currency;
-                                            _saveSelectedCurrencies();
-                                          });
-                                          _recalculateCurrencies();
-                                        },
-                                      );
-                                    },
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(8.0),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(5.0),
-                                  ),
-                                  child: Text(
-                                    _selectedCurrencies[index],
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 18),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // ),
-                            // const SizedBox(width: 10),
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                  ),
-                                  controller: _controllers[index],
-                                  focusNode: _focusNodes[index],
-                                  enabled: areRatesLoaded && !_isEditMode,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true, signed: true),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                        RegExp(r'^\d+\.?\d{0,2}')),
-                                    TextInputFormatter.withFunction(
-                                        (oldValue, newValue) {
-                                      if (newValue.text.startsWith('0') &&
-                                          newValue.text.length > 1 &&
-                                          newValue.text[1] != '.') {
-                                        return TextEditingValue(
-                                          text: newValue.text.substring(1),
-                                          selection: newValue.selection
-                                              .copyWith(
-                                                  baseOffset: newValue.selection
-                                                          .baseOffset -
-                                                      1,
-                                                  extentOffset: newValue
-                                                          .selection
-                                                          .extentOffset -
-                                                      1),
-                                        );
-                                      }
-                                      return newValue;
-                                    }),
-                                  ],
-                                  decoration: InputDecoration(
-                                    labelText: currencyName,
-                                    border: InputBorder.none,
-                                    labelStyle: TextStyle(
-                                        fontSize: 14,
-                                        color: widget.isDarkMode.value
-                                            ? _isEditMode
-                                                ? Colors.black12
-                                                : Colors.white24
-                                            : _isEditMode
-                                                ? Colors.white
-                                                : Colors.black26),
-                                  ),
-                                  onChanged: (value) {
-                                    bool areAllEmpty = true;
-                                    for (var controller in _controllers) {
-                                      if (controller.text.isNotEmpty) {
-                                        areAllEmpty = false;
-                                        break;
-                                      }
-                                    }
-                                    setState(() {
-                                      _areFieldsEmpty = areAllEmpty;
-                                    });
-                                    _activeInputIndex =
-                                        index; // Установка индекса активного поля ввода
-                                    String numericValue = value.replaceAll(
-                                        RegExp(r'[^\d\s?\.?]'), '');
-                                    double inputValue =
-                                        double.tryParse(numericValue) ?? 0.0;
-                                    String selectedCurrency =
-                                        _selectedCurrencies[index];
-                                    for (int i = 0;
-                                        i < _selectedCurrencies.length;
-                                        i++) {
-                                      if (i != index) {
-                                        String currencyCode =
-                                            _selectedCurrencies[i];
-                                        double baseRate =
-                                            _rates[selectedCurrency] ?? 1;
-                                        double toBaseValue =
-                                            inputValue / baseRate;
-                                        double targetRate =
-                                            _rates[currencyCode] ?? 1;
-                                        double multipliedValue =
-                                            toBaseValue * targetRate;
-                                        String formattedValue =
-                                            _formatter.format(multipliedValue);
-                                        _controllers[i].text = formattedValue;
-                                      }
-                                    }
-                                    setState(() {
-                                      _selectedCurrencies[index] =
-                                          selectedCurrency;
-                                    });
-                                    _checkIfFieldsAreEmpty();
-                                  },
-                                  onTap: () {
-                                    _focusNodes[index].addListener(() {
-                                      if (_focusNodes[index].hasFocus) {}
-                                    });
-                                  }),
-                            ),
-                            _isEditMode
-                                ? GestureDetector(
-                                    onTap: () => _removeCurrencyField(index),
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: 10.0),
-                                      child: Icon(Icons.delete_outline_rounded,
-                                          size: 26.0),
-                                    ),
-                                  )
-                                : GestureDetector(
-                                    onTap: _clearAllFields,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(10.0),
-                                      child:
-                                          Icon(Icons.close_rounded, size: 26.0),
-                                    ),
-                                  ),
-                            _isEditMode
-                                ? const SizedBox(
-                                    width: 10,
-                                  )
-                                : Container(),
-                            _isEditMode
-                                ? const Padding(
-                                    padding: EdgeInsets.all(10.0),
-                                    child: Icon(Icons.drag_indicator_outlined))
-                                : Container(),
-                          ],
-                        );
-                      } else {
-                        return Container(
-                          key: const ValueKey('EmergencyContainer'),
-                        );
-                      }
-                    },
-                    onReorder: (int oldIndex, int newIndex) {
-                      // Предотвращаем перемещение, если элемент - кнопка добавления или перемещается под кнопку добавления
-                      if (oldIndex == _selectedCurrencies.length ||
-                          newIndex > _selectedCurrencies.length) {
-                        return;
-                      }
-
-                      setState(() {
-                        if (newIndex > oldIndex) {
-                          newIndex -= 1;
-                        }
-                        final item = _selectedCurrencies.removeAt(oldIndex);
-                        _selectedCurrencies.insert(newIndex, item);
-                      });
-                    })
+                ? _isEditMode
+                    ? ReorderableListView.builder(
+                        itemCount: _selectedCurrencies.length + 1,
+                        itemBuilder: _buildListItem,
+                        onReorder: handleReorder,
+                      )
+                    : ListView.builder(
+                        itemCount: _selectedCurrencies.length + 1,
+                        itemBuilder: _buildListItem,
+                      )
                 : const CircularProgressIndicator(),
           )
         ],
