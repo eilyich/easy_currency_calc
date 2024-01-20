@@ -2,7 +2,7 @@
     package="com.currency_converter.currency_converter">
     <uses-permission android:name="android.permission.INTERNET" />
    <application
-        android:label="Конвертер Валют"
+        android:label="Easy Converter"
         android:name="${applicationName}"
         android:icon="@drawable/icon">
         <activity

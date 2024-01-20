@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
+// import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
@@ -13,6 +13,9 @@ import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+
+// import 'package:reorderables/reorderables.dart';
 
 import 'curlib.dart';
 
@@ -136,37 +139,13 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void changeLanguage() async {
-    showModalBottomSheet(
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10.0)),
-      ),
-      context: navigatorKey.currentState!.context,
-      builder: (BuildContext context) {
-        return SizedBox(
-          height: 200, // Укажите желаемую высоту
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                title: const Text('English'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setNewLocale('en');
-                },
-              ),
-              ListTile(
-                title: const Text('Русский'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setNewLocale('ru');
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  void changeLanguage() {
+    // Определение текущего языка и смена на другой
+    String newLocale = _locale.languageCode == 'en' ? 'ru' : 'en';
+
+    setState(() {
+      setNewLocale(newLocale);
+    });
   }
 
   @override
@@ -191,8 +170,8 @@ class _MyAppState extends State<MyApp> {
                   : Brightness.light, // Используйте _isDarkMode здесь
               appBarTheme: AppBarTheme(
                 backgroundColor: _isDarkMode.value
-                    ? const Color.fromARGB(255, 21, 25, 32)
-                    : const Color.fromARGB(255, 92, 145, 113),
+                    ? const Color.fromARGB(255, 20, 25, 30)
+                    : const Color.fromARGB(255, 180, 200, 190),
               ),
             ),
           );
@@ -287,9 +266,11 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool areRatesLoaded = false;
+  // bool _isInEditMode = false;
   int? _lastUpdateTimestamp;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
+  String _currentLanguageCode = 'EN';
   List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focusNodes = [];
@@ -298,6 +279,8 @@ class _MainScreenState extends State<MainScreen> {
   String selectedCurrency = '';
   TextEditingController searchController = TextEditingController();
   bool _isInitialized = false;
+  bool _areFieldsEmpty = true;
+  bool _isEditMode = false;
 
   Map<String, String> getCurrencyNames(String locale) {
     Map<String, dynamic> selectedMap = (locale == 'ru') ? aliasesRU : aliasesEN;
@@ -406,6 +389,19 @@ class _MainScreenState extends State<MainScreen> {
     _saveSelectedCurrencies(); // Сохраняем изменения в SharedPreferences
   }
 
+  void _onChanged(String value) {
+    bool areAllEmpty = true;
+    for (var controller in _controllers) {
+      if (controller.text.isNotEmpty) {
+        areAllEmpty = false;
+        break;
+      }
+    }
+    setState(() {
+      _areFieldsEmpty = areAllEmpty;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -487,6 +483,22 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  void _clearAllFields() {
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    // Проверяем, пусты ли все поля после очистки
+    _checkIfFieldsAreEmpty();
+  }
+
+  void _checkIfFieldsAreEmpty() {
+    bool areAllEmpty =
+        _controllers.every((controller) => controller.text.isEmpty);
+    setState(() {
+      _areFieldsEmpty = areAllEmpty;
+    });
+  }
+
   void activateError(BuildContext context, String message) {
     showToast(
       message, // Используем переданное сообщение
@@ -538,41 +550,187 @@ class _MainScreenState extends State<MainScreen> {
     var t = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('EASY  CONVERTER')),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('EASY  CONVERTER'),
+      ),
+      drawer: Drawer(
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: <Widget>[
+                  DrawerHeader(
+                    decoration: BoxDecoration(
+                      color: widget.isDarkMode.value
+                          ? const Color.fromARGB(255, 20, 25, 30)
+                          : const Color.fromARGB(255, 180, 200, 190),
+                    ),
+                    child: const Text(
+                      '',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(widget.isDarkMode.value
+                        ? Icons.wb_sunny_outlined
+                        : Icons.nights_stay_outlined),
+                    title: Text(t.drawerChangeTheme),
+                    onTap: () {
+                      _toggleTheme();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.wallet_giftcard_outlined),
+                    title: Text(t.drawerRemoveAds),
+                    onTap: () {
+                      activateError(context, t.miscAds);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                GestureDetector(
+                  onTap: () {
+                    MyApp.of(context)?.changeLanguage();
+                  },
+                  child: const Icon(Icons.keyboard_double_arrow_up_outlined),
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 1),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    );
+                  },
+                  child: Text(
+                    locale == 'ru' ? 'Русский' : 'English',
+                    key: ValueKey<String>(locale),
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
+                GestureDetector(
+                  onTap: () {
+                    MyApp.of(context)?.changeLanguage();
+                  },
+                  child: const Icon(Icons.keyboard_double_arrow_down_outlined),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 60,
+            ),
+            const Text(
+              "v 0.0.5 (Beta)",
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+          ],
+        ),
+      ),
       body: Column(
         children: [
           const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _noInternetConnection
-                    ? t.exceptionCheckConn
-                    : (_lastUpdateTimestamp != null
-                        ? '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}'
-                        : t.mainRatesLoading),
-                style: const TextStyle(
-                  fontSize: 10, // размер шрифта
-                  color: Color.fromARGB(255, 116, 177, 151), // цвет шрифта
+          Padding(
+            padding: const EdgeInsets.only(left: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.currency_exchange,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _getRates();
+                  },
                 ),
-              ),
-            ],
+                _noInternetConnection
+                    ? Text(t.exceptionCheckConn)
+                    : (_lastUpdateTimestamp != null)
+                        ? Text(
+                            '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
+                            style: const TextStyle(
+                              fontSize: 10, // размер шрифта
+                              color: Color.fromARGB(
+                                  255, 116, 177, 151), // цвет шрифта
+                            ),
+                          )
+                        : Row(children: [
+                            Text(
+                              t.mainRatesLoading,
+                              style: const TextStyle(
+                                fontSize: 10, // размер шрифта
+                                color: Color.fromARGB(
+                                    255, 116, 177, 151), // цвет шрифта
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 15,
+                            ),
+                            LoadingAnimationWidget.staggeredDotsWave(
+                                color: const Color.fromARGB(255, 116, 177, 151),
+                                size: 20),
+                          ]),
+                IconButton(
+                  icon: Icon(Icons.settings_outlined,
+                      size: 22,
+                      color: widget.isDarkMode.value
+                          ? _areFieldsEmpty
+                              ? Colors.white
+                              : Colors.white12
+                          : _areFieldsEmpty
+                              ? Colors.black
+                              : Colors.black12),
+                  onPressed: _areFieldsEmpty
+                      ? () {
+                          setState(() {
+                            _isEditMode = !_isEditMode;
+                          });
+                        }
+                      : null,
+                ),
+              ],
+            ),
           ),
-          // const SizedBox(height: 30),
           Expanded(
             child: _isInitialized
-                ? ListView.builder(
-                    itemCount: _selectedCurrencies.length + 2,
+                ? ReorderableListView.builder(
+                    itemCount: _selectedCurrencies.length + 1,
                     itemBuilder: (context, index) {
+                      final key = ValueKey('currency_$index');
                       if (index == _selectedCurrencies.length) {
                         if (_selectedCurrencies.length >= 20) {
                           return Center(
+                              key: const ValueKey('maxRowsMessage'),
                               child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Text(t.exceptionMaximumRows),
-                          ));
+                                padding: const EdgeInsets.all(10),
+                                child: Text(t.exceptionMaximumRows),
+                              ));
                         } else {
-                          return Center(
+                          return // Row(children: [
+                              Center(
+                            key: const ValueKey('addCurrencyButton'),
                             child: IconButton(
                               icon: const Icon(
                                 Icons.add_rounded,
@@ -582,132 +740,13 @@ class _MainScreenState extends State<MainScreen> {
                             ),
                           );
                         }
-                      } else if (index == _selectedCurrencies.length + 1) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: SizedBox(
-                            height: 120,
-                            child: Row(
-                              // mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Column(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.info),
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: Text(t.mainAbout),
-                                            content: SingleChildScrollView(
-                                              child: Text.rich(
-                                                TextSpan(
-                                                  children: [
-                                                    TextSpan(
-                                                      text: t.mainDisclamer1,
-                                                    ),
-                                                    TextSpan(
-                                                      text: t.mainDiclamer2,
-                                                      style: const TextStyle(
-                                                          color: Colors.blue),
-                                                      recognizer:
-                                                          TapGestureRecognizer()
-                                                            ..onTap = () async {
-                                                              const url =
-                                                                  'mailto:evgenyprudovsky@gmail.com';
-                                                              // ignore: deprecated_member_use
-                                                              await launch(url);
-                                                            },
-                                                    ),
-                                                    const TextSpan(
-                                                      text:
-                                                          " \n \n \n v. 0.0.4 (Beta)",
-                                                    ),
-                                                  ],
-                                                ),
-                                                style: const TextStyle(
-                                                    fontSize: 18),
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                },
-                                                child: const Text("ОК"),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Text(
-                                      t.mainInfo,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(widget.isDarkMode.value
-                                          ? Icons.nights_stay
-                                          : Icons.wb_sunny),
-                                      onPressed: _toggleTheme,
-                                    ),
-                                    Text(
-                                      t.mainTheme,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.currency_exchange),
-                                      onPressed: () {
-                                        _getRates();
-                                      },
-                                    ),
-                                    Text(
-                                      t.mainUpdate,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: [
-                                    IconButton(
-                                        icon: const Icon(Icons.language),
-                                        // onPressed: _changeLanguage,
-                                        onPressed: () {
-                                          MyApp.of(context)?.changeLanguage();
-                                        }),
-                                    Text(
-                                      t.mainLang,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-                      String currencyCode = _selectedCurrencies[index];
-                      String currencyName =
-                          currencyNames[currencyCode] ?? currencyCode;
-                      if (index < _controllers.length) {
+                      } else if (index < _controllers.length) {
+                        String currencyCode = _selectedCurrencies[index];
+                        String currencyName =
+                            currencyNames[currencyCode] ?? currencyCode;
                         return Row(
+                          key: key,
                           children: [
-                            // const SizedBox(width: 20),
-                            // Expanded(
-                            // child:
                             SizedBox(
                               width: 65,
                               child: InkWell(
@@ -737,7 +776,6 @@ class _MainScreenState extends State<MainScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8.0),
                                   decoration: BoxDecoration(
-                                    // border: Border.all(color: Colors.grey),
                                     borderRadius: BorderRadius.circular(5.0),
                                   ),
                                   child: Text(
@@ -749,7 +787,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                             ),
                             // ),
-                            const SizedBox(width: 10),
+                            // const SizedBox(width: 10),
                             Expanded(
                               flex: 2,
                               child: TextField(
@@ -758,7 +796,7 @@ class _MainScreenState extends State<MainScreen> {
                                   ),
                                   controller: _controllers[index],
                                   focusNode: _focusNodes[index],
-                                  enabled: areRatesLoaded,
+                                  enabled: areRatesLoaded && !_isEditMode,
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
                                           decimal: true, signed: true),
@@ -787,21 +825,29 @@ class _MainScreenState extends State<MainScreen> {
                                     }),
                                   ],
                                   decoration: InputDecoration(
-                                    // hintText: currencyName,
                                     labelText: currencyName,
                                     border: InputBorder.none,
-                                    labelStyle: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                      // color: Theme.of(context).brightness ==
-                                      //         Brightness.dark
-                                      //     ? Colors
-                                      //         .black12 // Цвет для темной темы
-                                      //     : Colors
-                                      //         .white12, // Цвет для светлой темы
-                                    ),
+                                    labelStyle: TextStyle(
+                                        fontSize: 14,
+                                        color: widget.isDarkMode.value
+                                            ? _isEditMode
+                                                ? Colors.black12
+                                                : Colors.white24
+                                            : _isEditMode
+                                                ? Colors.white
+                                                : Colors.black26),
                                   ),
                                   onChanged: (value) {
+                                    bool areAllEmpty = true;
+                                    for (var controller in _controllers) {
+                                      if (controller.text.isNotEmpty) {
+                                        areAllEmpty = false;
+                                        break;
+                                      }
+                                    }
+                                    setState(() {
+                                      _areFieldsEmpty = areAllEmpty;
+                                    });
                                     _activeInputIndex =
                                         index; // Установка индекса активного поля ввода
                                     String numericValue = value.replaceAll(
@@ -833,6 +879,7 @@ class _MainScreenState extends State<MainScreen> {
                                       _selectedCurrencies[index] =
                                           selectedCurrency;
                                     });
+                                    _checkIfFieldsAreEmpty();
                                   },
                                   onTap: () {
                                     _focusNodes[index].addListener(() {
@@ -840,36 +887,59 @@ class _MainScreenState extends State<MainScreen> {
                                     });
                                   }),
                             ),
-                            const SizedBox(width: 10),
-                            GestureDetector(
-                              onTap: () {
-                                for (final controller in _controllers) {
-                                  controller.clear();
-                                }
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.all(10.0),
-                                child: Icon(Icons.close_rounded, size: 26.0),
-                              ),
-                            ),
-                            // const SizedBox(width: 20),
-                            GestureDetector(
-                              onTap: () => _removeCurrencyField(index),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10.0),
-                                child: Icon(Icons.delete_outline_rounded,
-                                    size: 26.0),
-                              ),
-                            ),
+                            _isEditMode
+                                ? GestureDetector(
+                                    onTap: () => _removeCurrencyField(index),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 10.0),
+                                      child: Icon(Icons.delete_outline_rounded,
+                                          size: 26.0),
+                                    ),
+                                  )
+                                : GestureDetector(
+                                    onTap: _clearAllFields,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(10.0),
+                                      child:
+                                          Icon(Icons.close_rounded, size: 26.0),
+                                    ),
+                                  ),
+                            _isEditMode
+                                ? const SizedBox(
+                                    width: 10,
+                                  )
+                                : Container(),
+                            _isEditMode
+                                ? const Padding(
+                                    padding: EdgeInsets.all(10.0),
+                                    child: Icon(Icons.drag_indicator_outlined))
+                                : Container(),
                           ],
                         );
                       } else {
-                        return Container();
+                        return Container(
+                          key: const ValueKey('EmergencyContainer'),
+                        );
                       }
                     },
-                  )
+                    onReorder: (int oldIndex, int newIndex) {
+                      // Предотвращаем перемещение, если элемент - кнопка добавления или перемещается под кнопку добавления
+                      if (oldIndex == _selectedCurrencies.length ||
+                          newIndex > _selectedCurrencies.length) {
+                        return;
+                      }
+
+                      setState(() {
+                        if (newIndex > oldIndex) {
+                          newIndex -= 1;
+                        }
+                        final item = _selectedCurrencies.removeAt(oldIndex);
+                        _selectedCurrencies.insert(newIndex, item);
+                      });
+                    })
                 : const CircularProgressIndicator(),
-          ),
+          )
         ],
       ),
     );

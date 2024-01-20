@@ -7,10 +7,13 @@
     "mainLang": "Language",
     "exceptionRateFailure": "Exchange rates fetching failure",
     "exceptionCheckConn": "Check Internet connection...",
-    "mainRatesLoading": "Loading exchange rates...",
+    "mainRatesLoading": "Loading exchange rates",
     "mainDisclamer1": "Simple currency converter created for your convenience.\n \nFor any questions feel free to ",
     "mainDiclamer2": "mail me!",
     "mainAbout": "About",
     "mainSearch": "Search",
-    "exceptionMaximumRows": "Row number limit reached"
+    "exceptionMaximumRows": "Row number limit reached",
+    "drawerChangeTheme": "Change theme",
+    "drawerRemoveAds": "Remove ads",
+    "miscAds": "You're lucky!\nThere are no ads anyway!"
 }
