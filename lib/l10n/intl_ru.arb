@@ -15,5 +15,6 @@
     "exceptionMaximumRows": "Достигнут лимит количества строк",
     "drawerChangeTheme": "Цветовая схема",
     "drawerRemoveAds": "Отключить рекламу",
-    "miscAds": "Вам повезло!\nРекламы и так нет!"
+    "miscAds": "Вам повезло!\nРекламы и так нет!",
+    "drawerLanguage": "Язык"
 }

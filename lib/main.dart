@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter/gestures.dart';
 import 'dart:convert';
@@ -14,6 +15,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:country_flags/country_flags.dart';
 
 // import 'package:reorderables/reorderables.dart';
 
@@ -571,7 +573,12 @@ class _MainScreenState extends State<MainScreen> {
         double convertedValue = (baseInputValue / baseRate) * targetRate;
 
         setState(() {
-          _controllers[i].text = _formatter.format(convertedValue);
+          if (baseInputValue != 0.0) {
+            _controllers[i].text = _formatter.format(convertedValue);
+          } else {
+            _controllers[i]
+                .clear(); // Очищаем текстовое поле, если базовое значение равно 0
+          }
         });
       }
     }
@@ -633,7 +640,7 @@ class _MainScreenState extends State<MainScreen> {
       String currencyName = currencyNames[currencyCode] ?? currencyCode;
       return Row(
         key: key,
-        children: [
+        children: <Widget>[
           SizedBox(
             width: 65,
             child: InkWell(
@@ -708,11 +715,11 @@ class _MainScreenState extends State<MainScreen> {
                       fontSize: 14,
                       color: widget.isDarkMode.value
                           ? _isEditMode
-                              ? Colors.black12
-                              : Colors.white24
+                              ? Colors.white10
+                              : Colors.white38
                           : _isEditMode
-                              ? Colors.white
-                              : Colors.black26),
+                              ? Colors.black12
+                              : Colors.black38),
                 ),
                 onChanged: (value) {
                   _onChanged(value);
@@ -781,6 +788,16 @@ class _MainScreenState extends State<MainScreen> {
                   padding: EdgeInsets.all(10.0),
                   child: Icon(Icons.drag_indicator_outlined))
               : Container(),
+          PopScope(
+            canPop:
+                _areFieldsEmpty, //When false, blocks the current route from being popped.
+            onPopInvoked: (didPop) async {
+              setState(() {
+                _clearAllFields();
+              });
+            },
+            child: Container(),
+          )
         ],
       );
     } else {
@@ -824,8 +841,8 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   ListTile(
                     leading: Icon(widget.isDarkMode.value
-                        ? Icons.wb_sunny_outlined
-                        : Icons.nights_stay_outlined),
+                        ? Icons.nights_stay_outlined
+                        : Icons.wb_sunny_outlined),
                     title: Text(t.drawerChangeTheme),
                     onTap: () {
                       _toggleTheme();
@@ -838,55 +855,26 @@ class _MainScreenState extends State<MainScreen> {
                       activateError(context, t.miscAds);
                     },
                   ),
+                  ListTile(
+                    leading: Padding(
+                      padding: EdgeInsets.only(left: 1),
+                      child: CountryFlag.fromCountryCode(
+                        locale == 'en' ? 'gb' : 'ru',
+                        height: 20,
+                        width: 24,
+                        borderRadius: 100,
+                      ),
+                    ),
+                    title: Text(t.drawerLanguage),
+                    onTap: () {
+                      MyApp.of(context)?.changeLanguage();
+                    },
+                  ),
                 ],
               ),
             ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                GestureDetector(
-                  onTap: () {
-                    MyApp.of(context)?.changeLanguage();
-                  },
-                  child: const Icon(Icons.keyboard_double_arrow_up_outlined),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 1),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    );
-                  },
-                  child: Text(
-                    locale == 'ru' ? 'Русский' : 'English',
-                    key: ValueKey<String>(locale),
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                GestureDetector(
-                  onTap: () {
-                    MyApp.of(context)?.changeLanguage();
-                  },
-                  child: const Icon(Icons.keyboard_double_arrow_down_outlined),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 60,
-            ),
             const Text(
-              "v 0.1.0 (Beta)",
+              "v 0.1.1 (Beta)",
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(
@@ -896,7 +884,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       body: Column(
-        children: [
+        children: <Widget>[
           const SizedBox(height: 15),
           Padding(
             padding: const EdgeInsets.only(left: 2),
@@ -966,6 +954,9 @@ class _MainScreenState extends State<MainScreen> {
                     ? ReorderableListView.builder(
                         itemCount: _selectedCurrencies.length + 1,
                         itemBuilder: _buildListItem,
+                        // cacheExtent: 1000,
+                        dragStartBehavior: DragStartBehavior.down,
+
                         onReorder: handleReorder,
                       )
                     : ListView.builder(
@@ -973,6 +964,18 @@ class _MainScreenState extends State<MainScreen> {
                         itemBuilder: _buildListItem,
                       )
                 : const CircularProgressIndicator(),
+          ),
+          PopScope(
+            canPop:
+                !_isEditMode, //When false, blocks the current route from being popped.
+            onPopInvoked: (didPop) async {
+              if (_isEditMode) {
+                setState(() {
+                  _isEditMode = !_isEditMode; // Выход из режима редактирования
+                });
+              }
+            },
+            child: Container(),
           )
         ],
       ),

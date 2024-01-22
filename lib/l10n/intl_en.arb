@@ -15,5 +15,6 @@
     "exceptionMaximumRows": "Row number limit reached",
     "drawerChangeTheme": "Change theme",
     "drawerRemoveAds": "Remove ads",
-    "miscAds": "You're lucky!\nThere are no ads anyway!"
+    "miscAds": "You're lucky!\nThere are no ads anyway!",
+    "drawerLanguage": "Language"
 }
