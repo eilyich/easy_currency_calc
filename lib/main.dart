@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-// import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -17,9 +15,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:country_flags/country_flags.dart';
 
-// import 'package:reorderables/reorderables.dart';
-
 import 'curlib.dart';
+import 'help.dart';
 
 final logger = Logger(
   filter: null, // Вы можете использовать свой фильтр сообщений
@@ -97,6 +94,7 @@ class _MyAppState extends State<MyApp> {
       const Locale('en'); // Используйте язык по умолчанию, например, английский
 
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
 
   @override
@@ -156,20 +154,17 @@ class _MyAppState extends State<MyApp> {
         valueListenable: _isDarkMode,
         builder: (context, isDarkMode, child) {
           return MaterialApp(
-            // Добавьте return здесь
             navigatorKey: navigatorKey,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            // locale: Locale(_currentLocale),
             locale: _locale,
             home: MainScreen(
               isDarkMode: _isDarkMode,
               changeLocale: changeLocale,
             ),
             theme: ThemeData(
-              brightness: _isDarkMode.value
-                  ? Brightness.dark
-                  : Brightness.light, // Используйте _isDarkMode здесь
+              brightness:
+                  _isDarkMode.value ? Brightness.dark : Brightness.light,
               appBarTheme: AppBarTheme(
                 backgroundColor: _isDarkMode.value
                     ? const Color.fromARGB(255, 20, 25, 30)
@@ -210,7 +205,6 @@ class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
             controller: searchController,
             decoration: InputDecoration(
               labelText: AppLocalizations.of(context)!.mainSearch,
-
               suffixIcon: searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),
@@ -221,8 +215,6 @@ class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
                       },
                     )
                   : null,
-
-              // suffixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide:
@@ -266,9 +258,10 @@ class MainScreen extends StatefulWidget {
   _MainScreenState createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   bool areRatesLoaded = false;
-  // bool _isInEditMode = false;
   int? _lastUpdateTimestamp;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
@@ -405,6 +398,9 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  /// //////////////////////////////////////////////////////////////////////////
+  /// INIT STATE ///////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
   @override
   void initState() {
     super.initState();
@@ -456,7 +452,6 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _getRates() async {
     try {
-      // final result = await getExchangeRates(baseCurrency, _currencies);
       final result = await getExchangeRates(baseCurrency,
           getCurrencyList(Localizations.localeOf(context).languageCode));
       setState(() {
@@ -484,17 +479,6 @@ class _MainScreenState extends State<MainScreen> {
         }
       });
     }
-  }
-
-  void _recalculateCurrency(int index) {
-    String currencyCode = _selectedCurrencies[index];
-    double rate = _rates[currencyCode] ?? 1.0;
-    double baseValue = double.tryParse(_controllers[0].text) ?? 0.0;
-    double convertedValue = baseValue * rate;
-
-    setState(() {
-      _controllers[index].text = _formatter.format(convertedValue);
-    });
   }
 
   void _clearAllFields() {
@@ -623,8 +607,7 @@ class _MainScreenState extends State<MainScreen> {
               child: Text(t.exceptionMaximumRows),
             ));
       } else {
-        return // Row(children: [
-            Center(
+        return Center(
           key: const ValueKey('addCurrencyButton'),
           child: IconButton(
             icon: const Icon(
@@ -679,8 +662,6 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
           ),
-          // ),
-          // const SizedBox(width: 10),
           Expanded(
             flex: 2,
             child: TextField(
@@ -814,9 +795,25 @@ class _MainScreenState extends State<MainScreen> {
     var t = AppLocalizations.of(context)!;
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         centerTitle: true,
         title: const Text('EASY  CONVERTER'),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.help_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => HelpScreen(
+                          title: t.miscHelp,
+                          isDarkMode: widget.isDarkMode.value,
+                        )),
+              );
+            },
+          ),
+        ],
       ),
       drawer: Drawer(
         child: Column(
@@ -857,7 +854,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   ListTile(
                     leading: Padding(
-                      padding: EdgeInsets.only(left: 1),
+                      padding: const EdgeInsets.only(left: 1),
                       child: CountryFlag.fromCountryCode(
                         locale == 'en' ? 'gb' : 'ru',
                         height: 20,
@@ -954,9 +951,7 @@ class _MainScreenState extends State<MainScreen> {
                     ? ReorderableListView.builder(
                         itemCount: _selectedCurrencies.length + 1,
                         itemBuilder: _buildListItem,
-                        // cacheExtent: 1000,
                         dragStartBehavior: DragStartBehavior.down,
-
                         onReorder: handleReorder,
                       )
                     : ListView.builder(
