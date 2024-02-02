@@ -32,6 +32,7 @@ dependencies:
   country_flags: ^2.2.0
   flutter_animated_icons: ^1.0.1
   flutter_markdown: ^0.6.18+3
+  google_mobile_ads: ^4.0.0
 
 dev_dependencies:
   flutter_test:
