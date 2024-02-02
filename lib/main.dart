@@ -18,6 +18,8 @@ import 'package:country_flags/country_flags.dart';
 import 'curlib.dart';
 import 'help.dart';
 
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
 final logger = Logger(
   filter: null, // Вы можете использовать свой фильтр сообщений
   printer: PrettyPrinter(), // Вы можете использовать свой принтер сообщений
@@ -68,6 +70,7 @@ Future<bool> checkInternetConnection() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   await dotenv.load(fileName: ".env");
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -398,6 +401,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     });
   }
 
+  late BannerAd myBanner;
+  late AdWidget adWidget;
+
   /// //////////////////////////////////////////////////////////////////////////
   /// INIT STATE ///////////////////////////////////////////////////////////////
   /// //////////////////////////////////////////////////////////////////////////
@@ -424,6 +430,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       });
     });
 
+    myBanner = BannerAd(
+      adUnitId: dotenv.env['GOOGLE_AD_BANNER']!,
+      // 'ca-app-pub-3528562439396099/2328781258', // Используйте ваш реальный adUnitId
+      // 'ca-app-pub-3940256099942544/6300978111', // Тестовый adUnitId
+      size: AdSize.banner,
+      request: AdRequest(),
+      listener: BannerAdListener(
+        // Обработчики событий рекламы, например, при загрузке или ошибке
+        onAdLoaded: (Ad ad) => print('Ad loaded.'),
+        onAdFailedToLoad: (Ad ad, LoadAdError error) {
+          // Освободите ресурсы, если реклама не загрузилась
+          ad.dispose();
+          print('Ad failed to load: $error');
+        },
+      ),
+    );
+
+    // Загрузите рекламу
+    myBanner.load();
+
+    // Создайте AdWidget из баннера
+    adWidget = AdWidget(ad: myBanner);
+
     _loadRatesFromSharedPreferences();
     checkInternetConnection().then((hasInternet) {
       setState(() {
@@ -442,6 +471,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _controllers.forEach((controller) => controller.dispose());
     _focusNodes.forEach((node) => node.dispose());
     _retryTimer?.cancel();
+    myBanner.dispose();
     super.dispose();
   }
 
@@ -752,13 +782,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     child: Icon(Icons.delete_outline_rounded, size: 26.0),
                   ),
                 )
-              : GestureDetector(
-                  onTap: _clearAllFields,
-                  child: const Padding(
-                    padding: EdgeInsets.all(10.0),
-                    child: Icon(Icons.close_rounded, size: 26.0),
-                  ),
-                ),
+              : !_areFieldsEmpty // Проверяем, не пусты ли поля
+                  ? GestureDetector(
+                      onTap: _clearAllFields,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10.0),
+                        child: Icon(Icons.close_rounded, size: 26.0),
+                      ),
+                    )
+                  : const SizedBox(), // Если поля пусты и не в режиме редактирования, не показываем иконку
+
           _isEditMode
               ? const SizedBox(
                   width: 10,
@@ -871,7 +904,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
             ),
             const Text(
-              "v 0.1.1 (Beta)",
+              "v 0.1.2 (Beta)",
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(
@@ -973,6 +1006,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             child: Container(),
           )
         ],
+      ),
+      bottomNavigationBar: Container(
+        alignment: Alignment.center,
+        child: adWidget, // Вставьте AdWidget здесь
+        height: myBanner.size.height.toDouble(),
+        width: myBanner.size.width.toDouble(),
       ),
     );
   }

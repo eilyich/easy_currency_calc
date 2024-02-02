@@ -52,13 +52,16 @@ android {
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        multiDexEnabled true
+        def applicationId = localProperties['APPLICATION_ID']
+        manifestPlaceholders = [applicationIdValue: applicationId]
     }
 
     signingConfigs {
     release {
-        keyAlias 'key'
+        keyAlias 'easy_converter'
         keyPassword 'aVzk0451!1'
-        storeFile file('d:/flutter_windows/projects/easy_currency_calc/android/app/release-key.jks')
+        storeFile file('C:/Desk/Dvlp/easy_currency_calc/key.jks')
         storePassword 'aVzk0451!1'
         }
     }
@@ -81,4 +84,6 @@ flutter {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
 }

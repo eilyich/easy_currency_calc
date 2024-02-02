@@ -49,6 +49,11 @@ curlibEN.json
 curlibRU.json
 
 tools/
-.env
 main_backup.dart
 rows_backup1.dart
+
+# ---------------------------------------------
+.env
+build.gradle
+upload_certificate.pem
+key.jks
