@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -310,15 +312,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     prefs.setStringList('selectedCurrencies', _selectedCurrencies);
   } // сохранение-загрузка состояния
 
-  Future<void> _loadSelectedCurrencies() async {
-    final prefs = await SharedPreferences.getInstance();
-    final loadedCurrencies = prefs.getStringList('selectedCurrencies');
-    if (loadedCurrencies != null && loadedCurrencies.isNotEmpty) {
-      setState(() {
-        _selectedCurrencies = loadedCurrencies;
-      });
-    }
-  } // сохранение-загрузка состояния
+  // Future<void> _loadSelectedCurrencies() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final loadedCurrencies = prefs.getStringList('selectedCurrencies');
+  //   if (loadedCurrencies != null && loadedCurrencies.isNotEmpty) {
+  //     setState(() {
+  //       _selectedCurrencies = loadedCurrencies;
+  //     });
+  //   }
+  // } // сохранение-загрузка состояния
 
   Future<void> _loadRatesFromSharedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -435,14 +437,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       // 'ca-app-pub-3528562439396099/2328781258', // Используйте ваш реальный adUnitId
       // 'ca-app-pub-3940256099942544/6300978111', // Тестовый adUnitId
       size: AdSize.banner,
-      request: AdRequest(),
+      request: const AdRequest(),
       listener: BannerAdListener(
         // Обработчики событий рекламы, например, при загрузке или ошибке
-        onAdLoaded: (Ad ad) => print('Ad loaded.'),
+        // onAdLoaded: (Ad ad) => print('Ad loaded.'),
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           // Освободите ресурсы, если реклама не загрузилась
           ad.dispose();
-          print('Ad failed to load: $error');
+          // print('Ad failed to load: $error');
         },
       ),
     );
@@ -834,7 +836,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         title: const Text('EASY  CONVERTER'),
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.help_outline),
+            icon: const Icon(Icons.help_outline),
             onPressed: () {
               Navigator.push(
                 context,
@@ -1008,10 +1010,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ],
       ),
       bottomNavigationBar: Container(
-        alignment: Alignment.center,
-        child: adWidget, // Вставьте AdWidget здесь
+        alignment: Alignment.center, // Вставьте AdWidget здесь
         height: myBanner.size.height.toDouble(),
         width: myBanner.size.width.toDouble(),
+        child: adWidget,
       ),
     );
   }
