@@ -1,4 +1,4 @@
-final Map<String, dynamic> aliasesRU = {
+final Map<String, String> aliasesRU = {
   'AUD': 'Австралийский доллар',
   'AZN': 'Азербайджанский манат',
   'ARS': 'Аргентинский песо',
@@ -56,7 +56,7 @@ final Map<String, dynamic> aliasesRU = {
   'XAG': 'Серебро (тройская унция)',
 };
 
-final Map<String, dynamic> aliasesEN = {
+final Map<String, String> aliasesEN = {
   'ARS': 'Argentine Peso',
   'AMD': 'Armenian Dram',
   'AUD': 'Australian Dollar',

@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.currency_converter.currency_converter">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BILLING" />
    <application
         android:label="Easy Converter"
         android:name="androidx.multidex.MultiDexApplication"

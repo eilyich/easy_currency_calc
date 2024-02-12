@@ -906,7 +906,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
             ),
             const Text(
-              "v 0.1.2 (Beta)",
+              "v 0.1.3 (Beta)",
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(
@@ -1010,7 +1010,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ],
       ),
       bottomNavigationBar: Container(
-        alignment: Alignment.center, // Вставьте AdWidget здесь
+        alignment: Alignment.center,
         height: myBanner.size.height.toDouble(),
         width: myBanner.size.width.toDouble(),
         child: adWidget,
