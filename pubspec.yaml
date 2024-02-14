@@ -3,7 +3,7 @@ description: Currency converter
 
 # publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 0.1.3+8
+version: 0.1.4+9
 
 environment:
   sdk: '>=2.18.4 <3.0.0'
@@ -21,18 +21,17 @@ dependencies:
   connectivity_plus: ^3.0.3
   logger: ^1.1.0
   path_provider: ^2.0.14
-
   english_words: ^4.0.0
   provider: ^6.0.0
   flutter_styled_toast: ^2.2.1
-  flutter_dotenv: ^5.1.0
-  # flutter_reorderable_list: ^1.3.1
+  flutter_dotenv: ^5.1.0  
   reorderables: ^0.6.0
   loading_animation_widget: ^1.2.0+4
   country_flags: ^2.2.0
   flutter_animated_icons: ^1.0.1
   flutter_markdown: ^0.6.18+3
   google_mobile_ads: ^4.0.0
+  in_app_purchase: ^3.1.13
 
 dev_dependencies:
   flutter_test:

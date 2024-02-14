@@ -32,7 +32,7 @@
         <!-- App ID for Google Mobile Ads -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3528562439396099~6993363691"/> <!-- Используйте ваш реальный App ID -->
+            android:value="ca-app-pub-3528562439396099~6993363691"/> <!-- App ID из AdMob-->
         
         <!-- Flutter Embedding v2 -->
         <meta-data

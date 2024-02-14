@@ -16,6 +16,7 @@ import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:country_flags/country_flags.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'curlib.dart';
 import 'help.dart';
@@ -403,15 +404,47 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     });
   }
 
+  BannerAd? adaptiveBannerAd;
+  late AdSize? _adaptiveBannerAdSize;
+
   late BannerAd myBanner;
   late AdWidget adWidget;
+
+  void _loadAdaptiveBannerAd() async {
+    double width = MediaQuery.of(context).size.width;
+    AdSize? size = await AdSize.getAnchoredAdaptiveBannerAdSize(
+        Orientation.portrait, width.toInt());
+
+    if (size != null) {
+      setState(() {
+        _adaptiveBannerAdSize = size;
+      });
+      adaptiveBannerAd = BannerAd(
+        adUnitId: 'ca-app-pub-3940256099942544/9214589741',
+        size: size,
+        request: const AdRequest(),
+        listener: BannerAdListener(
+          onAdLoaded: (_) {
+            print('Адаптивный баннер загружен успешно');
+          },
+          onAdFailedToLoad: (Ad ad, LoadAdError error) {
+            print('Адаптивный баннер не загрузился: $error');
+            ad.dispose();
+          },
+        ),
+      );
+      adaptiveBannerAd!.load();
+    }
+  }
 
   /// //////////////////////////////////////////////////////////////////////////
   /// INIT STATE ///////////////////////////////////////////////////////////////
   /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
   @override
   void initState() {
     super.initState();
+
     SharedPreferences.getInstance().then((prefs) {
       // Загружаем сохраненный список валют
       List<String> loadedCurrencies =
@@ -432,10 +465,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       });
     });
 
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _loadAdaptiveBannerAd());
+
     myBanner = BannerAd(
-      adUnitId: dotenv.env['GOOGLE_AD_BANNER']!,
-      // 'ca-app-pub-3528562439396099/2328781258', // Используйте ваш реальный adUnitId
-      // 'ca-app-pub-3940256099942544/6300978111', // Тестовый adUnitId
+      adUnitId:
+          // dotenv.env['GOOGLE_AD_BANNER']!,
+          // 'ca-app-pub-3528562439396099/2328781258', // Используйте ваш реальный adUnitId
+          'ca-app-pub-3940256099942544/6300978111', // Тестовый adUnitId
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
@@ -830,191 +867,199 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     var t = AppLocalizations.of(context)!;
 
     return Scaffold(
-      key: _scaffoldKey,
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('EASY  CONVERTER'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => HelpScreen(
-                          title: t.miscHelp,
-                          isDarkMode: widget.isDarkMode.value,
-                        )),
-              );
-            },
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: Column(
-          children: <Widget>[
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: <Widget>[
-                  DrawerHeader(
-                    decoration: BoxDecoration(
-                      color: widget.isDarkMode.value
-                          ? const Color.fromARGB(255, 20, 25, 30)
-                          : const Color.fromARGB(255, 180, 200, 190),
-                    ),
-                    child: const Text(
-                      '',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(widget.isDarkMode.value
-                        ? Icons.nights_stay_outlined
-                        : Icons.wb_sunny_outlined),
-                    title: Text(t.drawerChangeTheme),
-                    onTap: () {
-                      _toggleTheme();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.wallet_giftcard_outlined),
-                    title: Text(t.drawerRemoveAds),
-                    onTap: () {
-                      activateError(context, t.miscAds);
-                    },
-                  ),
-                  ListTile(
-                    leading: Padding(
-                      padding: const EdgeInsets.only(left: 1),
-                      child: CountryFlag.fromCountryCode(
-                        locale == 'en' ? 'gb' : 'ru',
-                        height: 20,
-                        width: 24,
-                        borderRadius: 100,
-                      ),
-                    ),
-                    title: Text(t.drawerLanguage),
-                    onTap: () {
-                      MyApp.of(context)?.changeLanguage();
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Text(
-              "v 0.1.3 (Beta)",
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(
-              height: 20,
+        key: _scaffoldKey,
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text('EASY  CONVERTER'),
+          actions: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => HelpScreen(
+                            title: t.miscHelp,
+                            isDarkMode: widget.isDarkMode.value,
+                          )),
+                );
+              },
             ),
           ],
         ),
-      ),
-      body: Column(
-        children: <Widget>[
-          const SizedBox(height: 15),
-          Padding(
-            padding: const EdgeInsets.only(left: 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.currency_exchange,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    _getRates();
-                  },
+        drawer: Drawer(
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    DrawerHeader(
+                      decoration: BoxDecoration(
+                        color: widget.isDarkMode.value
+                            ? const Color.fromARGB(255, 20, 25, 30)
+                            : const Color.fromARGB(255, 180, 200, 190),
+                      ),
+                      child: const Text(
+                        '',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      leading: Icon(widget.isDarkMode.value
+                          ? Icons.nights_stay_outlined
+                          : Icons.wb_sunny_outlined),
+                      title: Text(t.drawerChangeTheme),
+                      onTap: () {
+                        _toggleTheme();
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.wallet_giftcard_outlined),
+                      title: Text(t.drawerRemoveAds),
+                      onTap: () {
+                        activateError(context, t.miscAds);
+                      },
+                    ),
+                    ListTile(
+                      leading: Padding(
+                        padding: const EdgeInsets.only(left: 1),
+                        child: CountryFlag.fromCountryCode(
+                          locale == 'en' ? 'gb' : 'ru',
+                          height: 20,
+                          width: 24,
+                          borderRadius: 100,
+                        ),
+                      ),
+                      title: Text(t.drawerLanguage),
+                      onTap: () {
+                        MyApp.of(context)?.changeLanguage();
+                      },
+                    ),
+                  ],
                 ),
-                _noInternetConnection
-                    ? Text(t.exceptionCheckConn)
-                    : (_lastUpdateTimestamp != null)
-                        ? Text(
-                            '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
-                            style: const TextStyle(
-                              fontSize: 10, // размер шрифта
-                              color: Color.fromARGB(
-                                  255, 116, 177, 151), // цвет шрифта
-                            ),
-                          )
-                        : Row(children: [
-                            Text(
-                              t.mainRatesLoading,
+              ),
+              const Text(
+                "v 0.1.4 (Beta)",
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+            ],
+          ),
+        ),
+        body: Column(
+          children: <Widget>[
+            Container(
+              alignment: Alignment.center,
+              height: myBanner.size.height.toDouble(),
+              width: myBanner.size.width.toDouble(),
+              child: adWidget,
+            ),
+            const SizedBox(height: 15),
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.currency_exchange,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      _getRates();
+                    },
+                  ),
+                  _noInternetConnection
+                      ? Text(t.exceptionCheckConn)
+                      : (_lastUpdateTimestamp != null)
+                          ? Text(
+                              '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
                               style: const TextStyle(
                                 fontSize: 10, // размер шрифта
                                 color: Color.fromARGB(
                                     255, 116, 177, 151), // цвет шрифта
                               ),
-                            ),
-                            const SizedBox(
-                              width: 15,
-                            ),
-                            LoadingAnimationWidget.staggeredDotsWave(
-                                color: const Color.fromARGB(255, 116, 177, 151),
-                                size: 20),
-                          ]),
-                IconButton(
-                  icon: Icon(Icons.settings_outlined,
-                      size: 22,
-                      color: widget.isDarkMode.value
-                          ? _areFieldsEmpty
-                              ? Colors.white
-                              : Colors.white12
-                          : _areFieldsEmpty
-                              ? Colors.black
-                              : Colors.black12),
-                  onPressed: _areFieldsEmpty
-                      ? () {
-                          setState(() {
-                            _isEditMode = !_isEditMode;
-                          });
-                        }
-                      : null,
-                ),
-              ],
+                            )
+                          : Row(children: [
+                              Text(
+                                t.mainRatesLoading,
+                                style: const TextStyle(
+                                  fontSize: 10, // размер шрифта
+                                  color: Color.fromARGB(
+                                      255, 116, 177, 151), // цвет шрифта
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 15,
+                              ),
+                              LoadingAnimationWidget.staggeredDotsWave(
+                                  color:
+                                      const Color.fromARGB(255, 116, 177, 151),
+                                  size: 20),
+                            ]),
+                  IconButton(
+                    icon: Icon(Icons.settings_outlined,
+                        size: 22,
+                        color: widget.isDarkMode.value
+                            ? _areFieldsEmpty
+                                ? Colors.white
+                                : Colors.white12
+                            : _areFieldsEmpty
+                                ? Colors.black
+                                : Colors.black12),
+                    onPressed: _areFieldsEmpty
+                        ? () {
+                            setState(() {
+                              _isEditMode = !_isEditMode;
+                            });
+                          }
+                        : null,
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: _isInitialized
-                ? _isEditMode
-                    ? ReorderableListView.builder(
-                        itemCount: _selectedCurrencies.length + 1,
-                        itemBuilder: _buildListItem,
-                        dragStartBehavior: DragStartBehavior.down,
-                        onReorder: handleReorder,
-                      )
-                    : ListView.builder(
-                        itemCount: _selectedCurrencies.length + 1,
-                        itemBuilder: _buildListItem,
-                      )
-                : const CircularProgressIndicator(),
-          ),
-          PopScope(
-            canPop:
-                !_isEditMode, //When false, blocks the current route from being popped.
-            onPopInvoked: (didPop) async {
-              if (_isEditMode) {
-                setState(() {
-                  _isEditMode = !_isEditMode; // Выход из режима редактирования
-                });
-              }
-            },
-            child: Container(),
-          )
-        ],
-      ),
-      bottomNavigationBar: Container(
-        alignment: Alignment.center,
-        height: myBanner.size.height.toDouble(),
-        width: myBanner.size.width.toDouble(),
-        child: adWidget,
-      ),
-    );
+            Expanded(
+              child: _isInitialized
+                  ? _isEditMode
+                      ? ReorderableListView.builder(
+                          itemCount: _selectedCurrencies.length + 1,
+                          itemBuilder: _buildListItem,
+                          dragStartBehavior: DragStartBehavior.down,
+                          onReorder: handleReorder,
+                        )
+                      : ListView.builder(
+                          itemCount: _selectedCurrencies.length + 1,
+                          itemBuilder: _buildListItem,
+                        )
+                  : const CircularProgressIndicator(),
+            ),
+            PopScope(
+              canPop:
+                  !_isEditMode, //When false, blocks the current route from being popped.
+              onPopInvoked: (didPop) async {
+                if (_isEditMode) {
+                  setState(() {
+                    _isEditMode =
+                        !_isEditMode; // Выход из режима редактирования
+                  });
+                }
+              },
+              child: Container(),
+            )
+          ],
+        ),
+        bottomNavigationBar: adaptiveBannerAd == null
+            ? const SizedBox.shrink()
+            : SizedBox(
+                height: _adaptiveBannerAdSize?.height.toDouble(),
+                width: MediaQuery.of(context).size.width,
+                child: AdWidget(ad: adaptiveBannerAd!),
+              ));
   }
 }
