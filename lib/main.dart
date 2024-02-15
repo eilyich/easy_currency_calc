@@ -83,6 +83,11 @@ Future<void> main() async {
   });
 }
 
+/// //////////////////////////////////////////////////////////////////////////
+/// MYAPP ////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+
 class MyApp extends StatefulWidget {
   MyApp({Key? key}) : super(key: key);
 
@@ -94,6 +99,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
+  ProductDetails? _productDetails; // Добавьте эту строку
+  // void Function(String message)? showErrorCallback;
+
   // ignore: unused_field
   String _currentLocale = 'en';
   Locale _locale =
@@ -101,14 +110,100 @@ class _MyAppState extends State<MyApp> {
 
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false); // Добавьте это
+  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
+
+  static _MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>();
 
   @override
   void initState() {
     super.initState();
     _loadTheme();
     _loadLocale();
+    // final Stream purchaseUpdates = InAppPurchase.instance.purchaseStream;
+    _subscription = InAppPurchase.instance.purchaseStream.listen(
+      (List<PurchaseDetails> purchaseDetailsList) {
+        _onPurchaseUpdated(purchaseDetailsList);
+      },
+      onError: (error) {
+        // Обработка ошибок покупки
+      },
+    );
+    _loadProducts(); // Загрузите доступные продукты для покупки
   }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  void _buyProduct() async {
+    final bool isAdFree = await _isAdFree();
+    if (!isAdFree) {
+      // Логика покупки продукта
+      // Загрузите детали продукта, если они ещё не загружены
+      if (_productDetails != null) {
+        final PurchaseParam purchaseParam =
+            PurchaseParam(productDetails: _productDetails!);
+        InAppPurchase.instance.buyNonConsumable(purchaseParam: purchaseParam);
+      } else {
+        print("Детали продукта не доступны");
+      }
+    } else {
+      print('товар уже куплен');
+    }
+  }
+
+  Future<bool> _isAdFree() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('adFree') ?? false;
+  }
+
+  void _onPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) {
+    for (final purchaseDetails in purchaseDetailsList) {
+      if (purchaseDetails.status == PurchaseStatus.purchased &&
+          purchaseDetails.productID == _kAdFreeId) {
+        // Покупка успешно завершена, отключаем рекламу
+        _disableAds();
+      }
+    }
+  }
+
+  final String _kAdFreeId = 'remove_ads_01'; // Замените на ID вашего продукта
+
+  Future<void> _loadProducts() async {
+    final bool available = await InAppPurchase.instance.isAvailable();
+    if (!available) {
+      // Магазин недоступен
+      print('The store is not available');
+      return;
+    }
+
+    Set<String> _kIds = <String>{_kAdFreeId};
+    final ProductDetailsResponse response =
+        await InAppPurchase.instance.queryProductDetails(_kIds);
+    if (response.notFoundIDs.isNotEmpty) {
+      // Продукт не найден
+      print('The product $_kAdFreeId was not found in the store');
+      return;
+    }
+
+    // Обрабатываем полученные данные о продукте
+    if (response.productDetails.isNotEmpty) {
+      setState(() {
+        _productDetails = response.productDetails.first;
+      });
+    }
+  }
+
+  void _disableAds() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('adFree', true);
+    // Обновляем состояние для скрытия рекламы
+    setState(() {});
+  }
+////////////////////////////////////////////////////////////////////////////////
 
   void setLocale(Locale locale) {
     setState(() {
@@ -253,6 +348,11 @@ class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
     );
   }
 }
+
+/// //////////////////////////////////////////////////////////////////////////
+/// MAIN SCREEN //////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
 
 class MainScreen extends StatefulWidget {
   final ValueNotifier<bool> isDarkMode;
@@ -917,11 +1017,36 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         _toggleTheme();
                       },
                     ),
+                    // ListTile(
+                    //   leading: const Icon(Icons.wallet_giftcard_outlined),
+                    //   title: Text(t.drawerRemoveAds),
+                    //   onTap: () {
+                    //     activateError(context, t.miscAds);
+                    //   },
+                    // ),
                     ListTile(
                       leading: const Icon(Icons.wallet_giftcard_outlined),
                       title: Text(t.drawerRemoveAds),
-                      onTap: () {
-                        activateError(context, t.miscAds);
+                      // onTap: () async {
+                      //   final prefs = await SharedPreferences.getInstance();
+                      //   final adFree = prefs.getBool('adFree') ?? false;
+                      //   if (adFree) {
+                      //     // Реклама уже отключена, показываем сообщение
+                      //     activateError(context, t.miscAds);
+                      //   } else {
+                      //     // Инициируем процесс покупки
+                      //     final state = MyApp.of(context);
+                      //     state?._buyProduct();
+                      //   }
+                      // },
+                      onTap: () async {
+                        final state = MyApp.of(context);
+                        if (await state?._isAdFree() ?? false) {
+                          // Реклама уже отключена, показываем сообщение
+                          activateError(context, t.miscAds);
+                        } else {
+                          state?._buyProduct();
+                        }
                       },
                     ),
                     ListTile(
@@ -943,7 +1068,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.1.4 (Beta)",
+                "v 0.1.5 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(
@@ -954,12 +1079,35 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         body: Column(
           children: <Widget>[
+            //////////////// -----------------------
             Container(
-              alignment: Alignment.center,
-              height: myBanner.size.height.toDouble(),
-              width: myBanner.size.width.toDouble(),
-              child: adWidget,
-            ),
+                alignment: Alignment.center,
+                height: myBanner.size.height.toDouble(),
+                width: myBanner.size.width.toDouble(),
+                child: adWidget //FutureBuilder<bool>(
+                //     future: _isAdFree(),
+                //     builder: (context, snapshot) {
+                //       if (snapshot.data == true) {
+                //         return SizedBox
+                //             .shrink(); // Если реклама отключена, не показываем её
+                //       }
+                //       return adWidget; // Иначе, показываем рекламный виджет
+                //     },
+                //   ),
+                ),
+            // FutureBuilder<bool>(
+            //   future: MyApp.of(context)?._isAdFree(),
+            //   builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+            //     if (snapshot.hasData && snapshot.data == true) {
+            //       // Если adFree == true, скрываем рекламу
+            //       return SizedBox.shrink();
+            //     } else {
+            //       // В противном случае показываем рекламу
+            //       return adWidget; // или AdWidget для адаптивного баннера
+            //     }
+            //   },
+            // ),
+            //////////////// -----------------------
             const SizedBox(height: 15),
             Padding(
               padding: const EdgeInsets.only(left: 2),
@@ -1054,12 +1202,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             )
           ],
         ),
+        //////////////// -----------------------
         bottomNavigationBar: adaptiveBannerAd == null
             ? const SizedBox.shrink()
             : SizedBox(
                 height: _adaptiveBannerAdSize?.height.toDouble(),
                 width: MediaQuery.of(context).size.width,
                 child: AdWidget(ad: adaptiveBannerAd!),
-              ));
+              )
+        // FutureBuilder<bool>(
+        //   future: MyApp.of(context)?._isAdFree(),
+        //   builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+        //     final isAdFree = snapshot.hasData && snapshot.data == true;
+
+        //     return SizedBox(
+        //       height: isAdFree ? null : _adaptiveBannerAdSize?.height.toDouble(),
+        //       width: MediaQuery.of(context).size.width,
+        //       child: isAdFree
+        //           ? const SizedBox.shrink()
+        //           : AdWidget(ad: adaptiveBannerAd!),
+        //     );
+        //   },
+        // ),
+        //////////////// -----------------------
+        );
   }
 }
