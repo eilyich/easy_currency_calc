@@ -94,8 +94,14 @@ class MyApp extends StatefulWidget {
   @override
   _MyAppState createState() => _MyAppState();
 
-  static _MyAppState? of(BuildContext context) =>
-      context.findAncestorStateOfType<_MyAppState>();
+  static _MyAppState? of(BuildContext context) {
+    final _MyAppState? result = context.findAncestorStateOfType<_MyAppState>();
+    if (result != null) {
+      return result;
+    } else {
+      throw Exception('Unable to find _MyAppState in context');
+    }
+  }
 }
 
 class _MyAppState extends State<MyApp> {
@@ -115,25 +121,34 @@ class _MyAppState extends State<MyApp> {
   static _MyAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MyAppState>();
 
+  // Переменная используется для хранения состояния — отключена ли реклама в приложении.
+  // Изначально устанавливается в false, указывая, что реклама включена.
   // ignore: unused_field
-  bool _isAdFreeState = false; // Новая переменная состояния
+  bool _isAdFreeState = false;
+
+  // Идентификатор продукта для отключения рекламы.
+  final String _kAdFreeId = 'remove_ads_01';
 
   @override
   void initState() {
     super.initState();
     _loadTheme();
     _loadLocale();
-    // final Stream purchaseUpdates = InAppPurchase.instance.purchaseStream;
+    _loadProducts(); // Загрузите доступные продукты для покупки
+    InAppPurchase.instance.restorePurchases();
+
+    // Создает подписку на поток покупок. Этот поток предоставляет уведомления о покупках,
+    // совершенных пользователем.
+    // Внутри вызова listen, покупки обрабатываются методом _onPurchaseUpdated,
+    // а ошибки — с помощью заглушки для обработки ошибок.
     _subscription = InAppPurchase.instance.purchaseStream.listen(
       (List<PurchaseDetails> purchaseDetailsList) {
         _onPurchaseUpdated(purchaseDetailsList);
       },
       onError: (error) {
-        // Обработка ошибок покупки
+        _checkAdFreeStatus(); // Проверяет, была ли уже совершена покупка для отключения рекламы,и обновляет состояние _isAdFreeState.
       },
     );
-    _loadProducts(); // Загрузите доступные продукты для покупки
-    _checkAdFreeStatus();
   }
 
   @override
@@ -142,11 +157,19 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+// void _restorePurchases() async {
+//   InAppPurchase.instance.restorePurchases();
+// }
+
+  // Асинхронно проверяет, была ли куплена опция без рекламы, с помощью метода _isAdFree(), и обновляет состояние _isAdFreeState.
   Future<void> _checkAdFreeStatus() async {
     _isAdFreeState = await _isAdFree();
     setState(() {});
   }
 
+  // Асинхронно проверяет, не куплена ли уже опция без рекламы.
+  // Если нет, и если доступны детали продукта, инициирует процесс покупки
+  // с использованием метода InAppPurchase.instance.buyNonConsumable().
   void _buyProduct() async {
     final bool isAdFree = await _isAdFree();
     if (!isAdFree) {
@@ -164,11 +187,15 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Асинхронно возвращает true или false, проверяя, сохранено ли в SharedPreferences значение adFree,
+  // которое указывает на покупку опции отключения рекламы.
   Future<bool> _isAdFree() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('adFree') ?? false;
   }
 
+  // Обрабатывает обновления покупок.
+  // Для каждой успешной покупки с идентификатором _kAdFreeId вызывает _disableAds(), чтобы отключить рекламу.
   void _onPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) {
     for (final purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.purchased &&
@@ -179,8 +206,9 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  final String _kAdFreeId = 'remove_ads_01'; // Замените на ID вашего продукта
-
+  // Асинхронно проверяет доступность магазина
+  // и запрашивает детали продукта для идентификатора _kAdFreeId.
+  // При успешном получении данных обновляет _productDetails для последующей покупки.
   Future<void> _loadProducts() async {
     final bool available = await InAppPurchase.instance.isAvailable();
     if (!available) {
@@ -206,6 +234,8 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Асинхронно сохраняет в SharedPreferences значение true для ключа adFree,
+  // указывая на то, что опция отключения рекламы куплена, и обновляет состояние _isAdFreeState.
   void _disableAds() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('adFree', true);
@@ -424,16 +454,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     prefs.setStringList('selectedCurrencies', _selectedCurrencies);
   } // сохранение-загрузка состояния
 
-  // Future<void> _loadSelectedCurrencies() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final loadedCurrencies = prefs.getStringList('selectedCurrencies');
-  //   if (loadedCurrencies != null && loadedCurrencies.isNotEmpty) {
-  //     setState(() {
-  //       _selectedCurrencies = loadedCurrencies;
-  //     });
-  //   }
-  // } // сохранение-загрузка состояния
-
   Future<void> _loadRatesFromSharedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     final ratesString = prefs.getString('rates');
@@ -501,7 +521,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _onChanged(String value) {
-    // bool areAllEmpty = true;
     bool areAllEmpty =
         _controllers.every((controller) => controller.text.isEmpty);
     for (var controller in _controllers) {
@@ -973,6 +992,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final appState = MyApp.of(context);
+    bool isAdFree = appState!._isAdFreeState;
+
+    print('is ad free: $isAdFree');
     String locale = Localizations.localeOf(context).languageCode;
 
     var t = AppLocalizations.of(context)!;
@@ -1028,28 +1051,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         _toggleTheme();
                       },
                     ),
-                    // ListTile(
-                    //   leading: const Icon(Icons.wallet_giftcard_outlined),
-                    //   title: Text(t.drawerRemoveAds),
-                    //   onTap: () {
-                    //     activateError(context, t.miscAds);
-                    //   },
-                    // ),
                     ListTile(
                       leading: const Icon(Icons.wallet_giftcard_outlined),
                       title: Text(t.drawerRemoveAds),
-                      // onTap: () async {
-                      //   final prefs = await SharedPreferences.getInstance();
-                      //   final adFree = prefs.getBool('adFree') ?? false;
-                      //   if (adFree) {
-                      //     // Реклама уже отключена, показываем сообщение
-                      //     activateError(context, t.miscAds);
-                      //   } else {
-                      //     // Инициируем процесс покупки
-                      //     final state = MyApp.of(context);
-                      //     state?._buyProduct();
-                      //   }
-                      // },
                       onTap: () async {
                         final state = MyApp.of(context);
                         if (await state?._isAdFree() ?? false) {
@@ -1079,7 +1083,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.1.5 (Beta)",
+                "v 0.2.0 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(
@@ -1090,36 +1094,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         body: Column(
           children: <Widget>[
-            //////////////// -----------------------
-            Container(
-                alignment: Alignment.center,
-                height: myBanner.size.height.toDouble(),
-                width: myBanner.size.width.toDouble(),
-                child: adWidget //FutureBuilder<bool>(
-                //     future: _isAdFree(),
-                //     builder: (context, snapshot) {
-                //       if (snapshot.data == true) {
-                //         return SizedBox
-                //             .shrink(); // Если реклама отключена, не показываем её
-                //       }
-                //       return adWidget; // Иначе, показываем рекламный виджет
-                //     },
-                //   ),
-                ),
-            // FutureBuilder<bool>(
-            //   future: MyApp.of(context)?._isAdFree(),
-            //   builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-            //     if (snapshot.hasData && snapshot.data == true) {
-            //       // Если adFree == true, скрываем рекламу
-            //       return SizedBox.shrink();
-            //     } else {
-            //       // В противном случае показываем рекламу
-            //       return adWidget; // или AdWidget для адаптивного баннера
-            //     }
-            //   },
-            // ),
-            //////////////// -----------------------
-            const SizedBox(height: 15),
+            const SizedBox(height: 7),
+            isAdFree
+                ? const SizedBox.shrink()
+                : Container(
+                    alignment: Alignment.center,
+                    height: myBanner.size.height.toDouble(),
+                    width: myBanner.size.width.toDouble(),
+                    child: adWidget),
+            const SizedBox(height: 7),
             Padding(
               padding: const EdgeInsets.only(left: 2),
               child: Row(
@@ -1216,26 +1199,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         //////////////// -----------------------
         bottomNavigationBar: adaptiveBannerAd == null
             ? const SizedBox.shrink()
-            : SizedBox(
-                height: _adaptiveBannerAdSize?.height.toDouble(),
-                width: MediaQuery.of(context).size.width,
-                child: AdWidget(ad: adaptiveBannerAd!),
-              )
-        // FutureBuilder<bool>(
-        //   future: MyApp.of(context)?._isAdFree(),
-        //   builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-        //     final isAdFree = snapshot.hasData && snapshot.data == true;
-
-        //     return SizedBox(
-        //       height: isAdFree ? null : _adaptiveBannerAdSize?.height.toDouble(),
-        //       width: MediaQuery.of(context).size.width,
-        //       child: isAdFree
-        //           ? const SizedBox.shrink()
-        //           : AdWidget(ad: adaptiveBannerAd!),
-        //     );
-        //   },
-        // ),
-        //////////////// -----------------------
-        );
+            : isAdFree
+                ? const SizedBox.shrink()
+                : SizedBox(
+                    height: _adaptiveBannerAdSize?.height.toDouble(),
+                    width: MediaQuery.of(context).size.width,
+                    child: AdWidget(ad: adaptiveBannerAd!),
+                  ));
   }
 }
