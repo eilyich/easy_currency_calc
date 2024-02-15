@@ -115,6 +115,9 @@ class _MyAppState extends State<MyApp> {
   static _MyAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MyAppState>();
 
+  // ignore: unused_field
+  bool _isAdFreeState = false; // Новая переменная состояния
+
   @override
   void initState() {
     super.initState();
@@ -130,12 +133,18 @@ class _MyAppState extends State<MyApp> {
       },
     );
     _loadProducts(); // Загрузите доступные продукты для покупки
+    _checkAdFreeStatus();
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkAdFreeStatus() async {
+    _isAdFreeState = await _isAdFree();
+    setState(() {});
   }
 
   void _buyProduct() async {
@@ -200,9 +209,11 @@ class _MyAppState extends State<MyApp> {
   void _disableAds() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('adFree', true);
-    // Обновляем состояние для скрытия рекламы
-    setState(() {});
+    setState(() {
+      _isAdFreeState = true; // Обновляем состояние
+    });
   }
+
 ////////////////////////////////////////////////////////////////////////////////
 
   void setLocale(Locale locale) {
