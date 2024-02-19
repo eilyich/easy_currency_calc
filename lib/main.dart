@@ -1107,7 +1107,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.2.3 (Beta)",
+                "v 0.2.4 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(
