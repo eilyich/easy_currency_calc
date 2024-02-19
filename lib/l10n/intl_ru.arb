@@ -7,6 +7,7 @@
     "mainLang": "Язык",
     "exceptionRateFailure": "Не удалось получить обменный курс",
     "exceptionCheckConn": "Проверьте соединение с Интернетом...",
+    "exceptionGooglePlayUnavailable": "Магазин недоступен",
     "mainRatesLoading": "Загрузка обменного курса",
     "mainDisclamer1": "Простой конвертер валют создан для вашего удобства.\n \nБуду рад любым пожеланиям и благодарностям, ",
     "mainDiclamer2": "пишите!",

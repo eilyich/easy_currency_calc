@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:country_flags/country_flags.dart';
@@ -20,6 +19,8 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'curlib.dart';
 import 'help.dart';
+import 'activateerror.dart';
+import 'purchase.dart';
 
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -106,7 +107,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   StreamSubscription<List<PurchaseDetails>>? _subscription;
-  ProductDetails? _productDetails; // Добавьте эту строку
+  ProductDetails? productDetails; // Добавьте эту строку
   // void Function(String message)? showErrorCallback;
 
   // ignore: unused_field
@@ -161,26 +162,27 @@ class _MyAppState extends State<MyApp> {
 //   InAppPurchase.instance.restorePurchases();
 // }
 
-  // Асинхронно проверяет, была ли куплена опция без рекламы, с помощью метода _isAdFree(), и обновляет состояние _isAdFreeState.
+  // Асинхронно проверяет, была ли куплена опция без рекламы, с помощью метода isAdFreeChecker(), и обновляет состояние _isAdFreeState.
   Future<void> _checkAdFreeStatus() async {
-    _isAdFreeState = await _isAdFree();
+    _isAdFreeState = await isAdFreeChecker();
     setState(() {});
   }
 
   // Асинхронно проверяет, не куплена ли уже опция без рекламы.
   // Если нет, и если доступны детали продукта, инициирует процесс покупки
   // с использованием метода InAppPurchase.instance.buyNonConsumable().
-  void _buyProduct() async {
-    final bool isAdFree = await _isAdFree();
+  void buyProduct() async {
+    final bool isAdFree = await isAdFreeChecker();
     if (!isAdFree) {
       // Логика покупки продукта
       // Загрузите детали продукта, если они ещё не загружены
-      if (_productDetails != null) {
+      if (productDetails != null) {
         final PurchaseParam purchaseParam =
-            PurchaseParam(productDetails: _productDetails!);
+            PurchaseParam(productDetails: productDetails!);
         InAppPurchase.instance.buyNonConsumable(purchaseParam: purchaseParam);
       } else {
         print("Детали продукта не доступны");
+        // activateError(navigatorKey.currentContext!, 'детали недоступны');
       }
     } else {
       print('товар уже куплен');
@@ -189,7 +191,7 @@ class _MyAppState extends State<MyApp> {
 
   // Асинхронно возвращает true или false, проверяя, сохранено ли в SharedPreferences значение adFree,
   // которое указывает на покупку опции отключения рекламы.
-  Future<bool> _isAdFree() async {
+  Future<bool> isAdFreeChecker() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('adFree') ?? false;
   }
@@ -208,7 +210,7 @@ class _MyAppState extends State<MyApp> {
 
   // Асинхронно проверяет доступность магазина
   // и запрашивает детали продукта для идентификатора _kAdFreeId.
-  // При успешном получении данных обновляет _productDetails для последующей покупки.
+  // При успешном получении данных обновляет productDetails для последующей покупки.
   Future<void> _loadProducts() async {
     final bool available = await InAppPurchase.instance.isAvailable();
     if (!available) {
@@ -229,9 +231,17 @@ class _MyAppState extends State<MyApp> {
     // Обрабатываем полученные данные о продукте
     if (response.productDetails.isNotEmpty) {
       setState(() {
-        _productDetails = response.productDetails.first;
+        productDetails = response.productDetails.first;
+        _savePriceAndCurrency(
+            productDetails!.price, productDetails!.currencyCode);
       });
     }
+  }
+
+  Future<void> _savePriceAndCurrency(String price, String currency) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('productPrice', price);
+    await prefs.setString('productCurrency', currency);
   }
 
   // Асинхронно сохраняет в SharedPreferences значение true для ключа adFree,
@@ -407,6 +417,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   bool areRatesLoaded = false;
   int? _lastUpdateTimestamp;
@@ -595,6 +606,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       });
     });
 
+    _updatePurchaseStatus();
+
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _loadAdaptiveBannerAd());
 
@@ -631,6 +644,37 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         _getRates();
       }
     });
+  }
+
+  Future<void> _updatePurchaseStatus() async {
+    bool isAdFree = await MyApp.of(context)!
+        .isAdFreeChecker(); // Предполагаем, что appState доступен
+
+    int maxSelected =
+        await _loadMaxSelectedCurrencies(); // Загрузка из SharedPreferences
+
+    try {
+      bool isAdFree = await MyApp.of(context)!
+          .isAdFreeChecker(); // Попытка получить значение _isAdFree
+      maxSelected = isAdFree ? 30 : 6;
+      _saveMaxSelectedCurrencies(maxSelected); // Сохраняем обновленное значение
+    } catch (e) {}
+
+    setState(() {
+      maxSelectedCurrencies = maxSelected;
+      isAdFreeScreenStatus = isAdFree ? true : false;
+    });
+  }
+
+  Future<void> _saveMaxSelectedCurrencies(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('maxSelectedCurrencies', value);
+  }
+
+  Future<int> _loadMaxSelectedCurrencies() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('maxSelectedCurrencies') ??
+        4; // Возвращаем 4, если значение не найдено
   }
 
   Timer? _retryTimer;
@@ -694,21 +738,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     setState(() {
       _areFieldsEmpty = areAllEmpty;
     });
-  }
-
-  void activateError(BuildContext context, String message) {
-    showToast(
-      message, // Используем переданное сообщение
-      context: context,
-      animation: StyledToastAnimation.slideFromBottomFade,
-      position: StyledToastPosition.center,
-      duration: const Duration(seconds: 2),
-      backgroundColor: Colors.grey,
-      textStyle: const TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w400, color: Colors.white),
-      curve: Curves.elasticOut,
-      reverseCurve: Curves.linear,
-    );
   }
 
   String formatDate(int timestamp) {
@@ -790,6 +819,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _recalculateCurrenciesAfterReorder();
   }
 
+  int maxSelectedCurrencies = 6;
+  bool isAdFreeScreenStatus = true;
+
   Widget _buildListItem(BuildContext context, int index) {
     String locale = Localizations.localeOf(context).languageCode;
     Map<String, String> currencyNames = getCurrencyNames(locale);
@@ -798,7 +830,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     final key = ValueKey('currency_$index');
     if (index == _selectedCurrencies.length) {
-      if (_selectedCurrencies.length >= 20) {
+      if (_selectedCurrencies.length >= maxSelectedCurrencies) {
         return Center(
             key: const ValueKey('maxRowsMessage'),
             child: Padding(
@@ -992,12 +1024,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final appState = MyApp.of(context);
-    bool isAdFree = appState!._isAdFreeState;
-
-    print('is ad free: $isAdFree');
     String locale = Localizations.localeOf(context).languageCode;
-
     var t = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -1054,14 +1081,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     ListTile(
                       leading: const Icon(Icons.wallet_giftcard_outlined),
                       title: Text(t.drawerRemoveAds),
-                      onTap: () async {
-                        final state = MyApp.of(context);
-                        if (await state?._isAdFree() ?? false) {
-                          // Реклама уже отключена, показываем сообщение
-                          activateError(context, t.miscAds);
-                        } else {
-                          state?._buyProduct();
-                        }
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const PurchaseScreen()),
+                        );
                       },
                     ),
                     ListTile(
@@ -1083,7 +1108,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.2.0 (Beta)",
+                "v 0.2.3 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(
@@ -1095,7 +1120,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         body: Column(
           children: <Widget>[
             const SizedBox(height: 7),
-            isAdFree
+            isAdFreeScreenStatus
                 ? const SizedBox.shrink()
                 : Container(
                     alignment: Alignment.center,
@@ -1118,7 +1143,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     },
                   ),
                   _noInternetConnection
-                      ? Text(t.exceptionCheckConn)
+                      ? Text(
+                          t.exceptionCheckConn,
+                          style: const TextStyle(
+                            fontSize: 10, // размер шрифта
+                            color:
+                                Color.fromARGB(255, 173, 63, 53), // цвет шрифта
+                          ),
+                        )
                       : (_lastUpdateTimestamp != null)
                           ? Text(
                               '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
@@ -1196,10 +1228,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             )
           ],
         ),
-        //////////////// -----------------------
         bottomNavigationBar: adaptiveBannerAd == null
             ? const SizedBox.shrink()
-            : isAdFree
+            : isAdFreeScreenStatus
                 ? const SizedBox.shrink()
                 : SizedBox(
                     height: _adaptiveBannerAdSize?.height.toDouble(),
