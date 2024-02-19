@@ -254,8 +254,6 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-////////////////////////////////////////////////////////////////////////////////
-
   void setLocale(Locale locale) {
     setState(() {
       _locale = locale;
@@ -546,22 +544,23 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   BannerAd? adaptiveBannerAd;
-  late AdSize? _adaptiveBannerAdSize;
+  late AdSize? adaptiveBannerAdSize;
 
   late BannerAd myBanner;
   late AdWidget adWidget;
 
-  void _loadAdaptiveBannerAd() async {
+  void loadAdaptiveBannerAd(String adaptiveAdId) async {
     double width = MediaQuery.of(context).size.width;
     AdSize? size = await AdSize.getAnchoredAdaptiveBannerAdSize(
         Orientation.portrait, width.toInt());
 
     if (size != null) {
       setState(() {
-        _adaptiveBannerAdSize = size;
+        adaptiveBannerAdSize = size;
       });
       adaptiveBannerAd = BannerAd(
-        adUnitId: 'ca-app-pub-3940256099942544/9214589741',
+        // adUnitId: 'ca-app-pub-3940256099942544/9214589741',
+        adUnitId: adaptiveAdId,
         size: size,
         request: const AdRequest(),
         listener: BannerAdListener(
@@ -608,8 +607,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     _updatePurchaseStatus();
 
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _loadAdaptiveBannerAd());
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => loadAdaptiveBannerAd('ca-app-pub-3940256099942544/9214589741'));
 
     myBanner = BannerAd(
       adUnitId:
@@ -631,6 +630,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     // Загрузите рекламу
     myBanner.load();
+    // myBannerHelp.load();
 
     // Создайте AdWidget из баннера
     adWidget = AdWidget(ad: myBanner);
@@ -1233,7 +1233,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             : isAdFreeScreenStatus
                 ? const SizedBox.shrink()
                 : SizedBox(
-                    height: _adaptiveBannerAdSize?.height.toDouble(),
+                    height: adaptiveBannerAdSize?.height.toDouble(),
                     width: MediaQuery.of(context).size.width,
                     child: AdWidget(ad: adaptiveBannerAd!),
                   ));
