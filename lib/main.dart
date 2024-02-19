@@ -630,7 +630,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     // Загрузите рекламу
     myBanner.load();
-    // myBannerHelp.load();
 
     // Создайте AdWidget из баннера
     adWidget = AdWidget(ad: myBanner);

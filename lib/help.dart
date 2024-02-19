@@ -3,13 +3,16 @@ import 'package:flutter_animated_icons/icons8.dart';
 import 'package:flutter_animated_icons/lottiefiles.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-// import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // import 'main.dart';
 
 class HelpScreen extends StatefulWidget {
-  const HelpScreen({Key? key, required this.title, required this.isDarkMode})
-      : super(key: key);
+  const HelpScreen({
+    Key? key,
+    required this.title,
+    required this.isDarkMode,
+  }) : super(key: key);
 
   final String title;
   final bool isDarkMode;
@@ -20,8 +23,10 @@ class HelpScreen extends StatefulWidget {
 
 class _HelpScreenState extends State<HelpScreen> with TickerProviderStateMixin {
   late AnimationController _refreshController;
-  // final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  // BannerAd? adaptiveBannerAd;
+  BannerAd? adaptiveBannerAd;
+  late AdSize? adaptiveBannerAdSize;
+  late final VoidCallback? loadAdaptiveBannerAd;
+  late final VoidCallback? isAdFree;
 
   Color lightGreenColor = const Color.fromARGB(255, 180, 200, 190);
 
