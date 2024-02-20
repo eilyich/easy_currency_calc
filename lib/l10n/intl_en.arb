@@ -14,10 +14,14 @@
     "mainAbout": "About",
     "mainSearch": "Search",
     "exceptionMaximumRows": "Row number limit reached",
+    "exceptionMaximumRowsGetPro": "More currency rows in ",
+    "exceptionMaximumRowsGetProLink": "Pro-version!",
     "drawerChangeTheme": "Change theme",
-    "drawerRemoveAds": "Remove ads",
+    "drawerRemoveAds": "Pro version",
     "miscAds": "You're lucky!\nThere are no ads anyway!",
     "drawerLanguage": "Language",
+    "drawerPrivacy": "Privacy policy",
+    "drawerTerms": "Terms of use",
     "miscHelp": "Help",
     "helpScreenRefresh": "Exchange rates are loaded online.\n\nBut no worries if there's no internet! You can still perform calculations based on the rate from the last load.",
     "helpScreenAllCurrencys": "Add the currencies you need using the '+' button.\n\nThe list includes over 50 currencies from around the world, as well as precious metals and Bitcoin.",
@@ -25,5 +29,11 @@
     "helpScreenSettingsIntro": "You can always customize the calculation field to suit your needs:",
     "helpScreenSettingsDelete": "If a currency is no longer needed, it can be removed from the list.",
     "helpScreenSettingsReorder": "In the settings mode, you can swap currencies around - so the most important ones are where it's convenient!",
-    "helpScreenComment": "(Currently, the settings mode can only be activated when the input fields for amounts are empty. We are working on improving the user experience and will change this mechanism in the future)."
+    "helpScreenComment": "(Currently, the settings mode can only be activated when the input fields for amounts are empty. We are working on improving the user experience and will change this mechanism in the future).",
+    "purchaseScreenPayOnceUseForever": "Pay once, use forever!",
+    "purchaseScreenProVersion": "Pro-version is:\n● Ads disabeling\n● You can add up to 30 currencys at a time",
+    "purchaseScreenPurchaseError": "Purchasement error: $e",
+    "purchaseScreenBuyButton": "Purchase",
+    "purchaseScreenBuyTY1": "Thanks for buying Easy Converter!",
+    "purchaseScreenBuyTY2": "We work for you! Will develop the application further and offer new useful solutions."
 }

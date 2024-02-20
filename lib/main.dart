@@ -16,6 +16,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'curlib.dart';
 import 'help.dart';
@@ -559,7 +560,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         adaptiveBannerAdSize = size;
       });
       adaptiveBannerAd = BannerAd(
-        // adUnitId: 'ca-app-pub-3940256099942544/9214589741',
         adUnitId: adaptiveAdId,
         size: size,
         request: const AdRequest(),
@@ -607,14 +607,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     _updatePurchaseStatus();
 
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => loadAdaptiveBannerAd('ca-app-pub-3940256099942544/9214589741'));
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadAdaptiveBannerAd(
+          dotenv.env['GOOGLE_AD_BOTTOM_BANNER']!,
+        ));
 
     myBanner = BannerAd(
-      adUnitId:
-          // dotenv.env['GOOGLE_AD_BANNER']!,
-          // 'ca-app-pub-3528562439396099/2328781258', // Используйте ваш реальный adUnitId
-          'ca-app-pub-3940256099942544/6300978111', // Тестовый adUnitId
+      adUnitId: dotenv.env['GOOGLE_AD_BANNER']!,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
@@ -818,6 +816,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _recalculateCurrenciesAfterReorder();
   }
 
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url)) {
+      throw 'Could not launch $urlString';
+    }
+  }
+
   int maxSelectedCurrencies = 6;
   bool isAdFreeScreenStatus = true;
 
@@ -830,12 +835,36 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final key = ValueKey('currency_$index');
     if (index == _selectedCurrencies.length) {
       if (_selectedCurrencies.length >= maxSelectedCurrencies) {
-        return Center(
-            key: const ValueKey('maxRowsMessage'),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Text(t.exceptionMaximumRows),
-            ));
+        if (isAdFreeScreenStatus) {
+          return Center(
+              key: const ValueKey('maxRowsMessage'),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(t.exceptionMaximumRows),
+              ));
+        } else {
+          return Center(
+              key: const ValueKey('maxRowsMessage'),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(t.exceptionMaximumRowsGetPro),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const PurchaseScreen()),
+                      );
+                    },
+                    child: Text(t.exceptionMaximumRowsGetProLink,
+                        style: const TextStyle(
+                            color: Color.fromARGB(255, 116, 177, 151))),
+                  )
+                ]),
+              ));
+        }
       } else {
         return Center(
           key: const ValueKey('addCurrencyButton'),
@@ -1107,11 +1136,36 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.2.4 (Beta)",
+                "v 0.3.1 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
+              const SizedBox(height: 15),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () => _launchUrl(
+                        'https://doc-hosting.flycricket.io/easy-converter-privacy-policy/d34d2042-6aac-4b5b-905c-3d5b89c8746e/privacy'),
+                    child: Text(
+                      t.drawerPrivacy,
+                      style: const TextStyle(
+                          decoration: TextDecoration.underline, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  InkWell(
+                    onTap: () => _launchUrl(
+                        'https://doc-hosting.flycricket.io/easy-converter-terms-of-use/e77c2dc5-25eb-4615-a538-41a32287d708/terms'),
+                    child: Text(
+                      t.drawerTerms,
+                      style: const TextStyle(
+                          decoration: TextDecoration.underline, fontSize: 12),
+                    ),
+                  )
+                ],
+              ),
               const SizedBox(
-                height: 20,
+                height: 30,
               ),
             ],
           ),
