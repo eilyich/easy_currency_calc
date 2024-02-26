@@ -1200,7 +1200,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.4.3 (Beta)",
+                "v 0.4.4 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 15),
@@ -1252,58 +1252,58 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             Padding(
               padding: const EdgeInsets.only(left: 2),
               child: Row(
-                // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   //////////////////////////////////////////////////////////////
                   // Иконка обновления курсов и
                   // Сообщения об успешной загрузке / не загрузке курсов
                   //////////////////////////////////////////////////////////////
 
-                  // IconButton(
-                  //   icon: const Icon(
-                  //     Icons.currency_exchange,
-                  //     size: 20,
-                  //   ),
-                  //   onPressed: () {
-                  //     _getRates();
-                  //   },
-                  // ),
-                  // _noInternetConnection
-                  //     ? Text(
-                  //         t.exceptionCheckConn,
-                  //         style: const TextStyle(
-                  //           fontSize: 10, // размер шрифта
-                  //           color:
-                  //               Color.fromARGB(255, 173, 63, 53), // цвет шрифта
-                  //         ),
-                  //       )
-                  //     : (_lastUpdateTimestamp != null)
-                  //         ? Text(
-                  //             '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
-                  //             style: const TextStyle(
-                  //               fontSize: 10, // размер шрифта
-                  //               color: Color.fromARGB(
-                  //                   255, 116, 177, 151), // цвет шрифта
-                  //             ),
-                  //           )
-                  //         : Row(children: [
-                  //             Text(
-                  //               t.mainRatesLoading,
-                  //               style: const TextStyle(
-                  //                 fontSize: 10, // размер шрифта
-                  //                 color: Color.fromARGB(
-                  //                     255, 116, 177, 151), // цвет шрифта
-                  //               ),
-                  //             ),
-                  //             const SizedBox(
-                  //               width: 15,
-                  //             ),
-                  //             LoadingAnimationWidget.staggeredDotsWave(
-                  //                 color:
-                  //                     const Color.fromARGB(255, 116, 177, 151),
-                  //                 size: 20),
-                  //           ]),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.currency_exchange,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      _getRates();
+                    },
+                  ),
+                  _noInternetConnection
+                      ? Text(
+                          t.exceptionCheckConn,
+                          style: const TextStyle(
+                            fontSize: 10, // размер шрифта
+                            color:
+                                Color.fromARGB(255, 173, 63, 53), // цвет шрифта
+                          ),
+                        )
+                      : (_lastUpdateTimestamp != null)
+                          ? Text(
+                              '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
+                              style: const TextStyle(
+                                fontSize: 10, // размер шрифта
+                                color: Color.fromARGB(
+                                    255, 116, 177, 151), // цвет шрифта
+                              ),
+                            )
+                          : Row(children: [
+                              Text(
+                                t.mainRatesLoading,
+                                style: const TextStyle(
+                                  fontSize: 10, // размер шрифта
+                                  color: Color.fromARGB(
+                                      255, 116, 177, 151), // цвет шрифта
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 15,
+                              ),
+                              LoadingAnimationWidget.staggeredDotsWave(
+                                  color:
+                                      const Color.fromARGB(255, 116, 177, 151),
+                                  size: 20),
+                            ]),
                   IconButton(
                     icon: Icon(Icons.settings_outlined,
                         size: 22,
