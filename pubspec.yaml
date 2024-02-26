@@ -3,7 +3,7 @@ description: Currency converter
 
 # publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 0.3.1+17
+version: 0.3.3+19
 
 environment:
   sdk: '>=2.18.4 <3.0.0'
@@ -33,6 +33,7 @@ dependencies:
   google_mobile_ads: ^4.0.0
   in_app_purchase: ^3.1.13
   flutter_svg: ^2.0.9
+  # in_app_purchase_android: ^0.3.1
 
 dev_dependencies:
   flutter_test:

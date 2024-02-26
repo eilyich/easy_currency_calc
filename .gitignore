@@ -57,5 +57,6 @@ rows_backup1.dart
 build.gradle
 upload_certificate.pem
 key.jks
+checkpurchase.dart
 
 symbols/

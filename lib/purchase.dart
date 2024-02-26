@@ -64,31 +64,34 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       }
                       if (snapshot.hasData && snapshot.data == true) {
                         // Если реклама отключена (true)
-                        return Column(
-                          children: [
-                            const SizedBox(height: 50),
-                            Center(
-                              child: SvgPicture.asset(
-                                'assets/money-cash-purchased.svg', // Путь к SVG для состояния без рекламы
-                                width: 200.0,
-                                height: 200.0,
-                                colorFilter: const ColorFilter.mode(
-                                    Color.fromARGB(255, 116, 177, 151),
-                                    BlendMode.srcIn),
-                              ),
-                            ),
-                            const SizedBox(height: 50),
-                            Text(
-                              t.purchaseScreenBuyTY1,
-                              style: TextStyle(
-                                  color: Color.fromARGB(255, 116, 177, 151),
-                                  fontSize: 50,
-                                  fontStyle: FontStyle.italic),
-                            ),
-                            Text(t.purchaseScreenBuyTY2,
-                                style: const TextStyle(fontSize: 16))
-                          ],
-                        );
+                        return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 50),
+                                Center(
+                                  child: SvgPicture.asset(
+                                    'assets/money-cash-purchased.svg', // Путь к SVG для состояния без рекламы
+                                    width: 200.0,
+                                    height: 200.0,
+                                    colorFilter: const ColorFilter.mode(
+                                        Color.fromARGB(255, 116, 177, 151),
+                                        BlendMode.srcIn),
+                                  ),
+                                ),
+                                const SizedBox(height: 50),
+                                Text(
+                                  t.purchaseScreenBuyTY1,
+                                  style: const TextStyle(
+                                      color: Color.fromARGB(255, 116, 177, 151),
+                                      fontSize: 18,
+                                      fontStyle: FontStyle.italic),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(t.purchaseScreenBuyTY2,
+                                    style: const TextStyle(fontSize: 16))
+                              ],
+                            ));
                       } else {
                         // Если реклама включена (false)
                         return Column(
@@ -131,72 +134,79 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                               height: 20,
                             ),
                             Text(t.purchaseScreenProVersion),
+                            Padding(
+                              padding: const EdgeInsets.all(
+                                  16.0), // Добавляем отступы вокруг кнопки для визуального комфорта
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints.tightFor(
+                                    width: double
+                                        .infinity), // Задаем максимальную ширину
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    setState(() {
+                                      _isLoading =
+                                          true; // Включаем индикатор загрузки
+                                    });
+
+                                    try {
+                                      final onTapState = MyApp.of(context);
+                                      if (await onTapState?.isAdFreeChecker() ??
+                                          false) {
+                                        // Реклама уже отключена, показываем сообщение
+                                        activateError(context, t.miscAds);
+                                      } else {
+                                        if (onTapState?.productDetails !=
+                                            null) {
+                                          onTapState?.buyProduct();
+                                          Navigator.pop(context, true);
+                                        } else {
+                                          activateError(context,
+                                              t.exceptionGooglePlayUnavailable);
+                                        }
+                                      }
+                                    } catch (e) {
+                                      // Обрабатываем любые ошибки, возникшие во время покупки
+                                      activateError(context,
+                                          t.purchaseScreenPurchaseError);
+                                      // Возможно, показать диалоговое окно с ошибкой или Snackbar
+                                    } finally {
+                                      setState(() {
+                                        _isLoading = false;
+                                      });
+                                    }
+                                  }, // Добавьте соответствующий текст для кнопки
+                                  style: ButtonStyle(
+                                    backgroundColor:
+                                        MaterialStateProperty.all<Color>(
+                                            const Color.fromARGB(255, 116, 177,
+                                                151)), // Цвет фона кнопки
+                                    padding:
+                                        MaterialStateProperty.all<EdgeInsets>(
+                                      const EdgeInsets.symmetric(
+                                          vertical:
+                                              5.0), // Внутренние отступы для высоты кнопки
+                                    ),
+                                    shape: MaterialStateProperty.all<
+                                        RoundedRectangleBorder>(
+                                      RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                            3.0), // Скругление углов
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    t.purchaseScreenBuyButton,
+                                    style: const TextStyle(
+                                        color: Colors.black, fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                            )
                           ],
                         );
                       }
                     },
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(
-                        16.0), // Добавляем отступы вокруг кнопки для визуального комфорта
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints.tightFor(
-                          width: double.infinity), // Задаем максимальную ширину
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          setState(() {
-                            _isLoading = true; // Включаем индикатор загрузки
-                          });
-
-                          try {
-                            final onTapState = MyApp.of(context);
-                            if (await onTapState?.isAdFreeChecker() ?? false) {
-                              // Реклама уже отключена, показываем сообщение
-                              activateError(context, t.miscAds);
-                            } else {
-                              if (onTapState?.productDetails != null) {
-                                onTapState?.buyProduct();
-                              } else {
-                                activateError(
-                                    context, t.exceptionGooglePlayUnavailable);
-                              }
-                            }
-                          } catch (e) {
-                            // Обрабатываем любые ошибки, возникшие во время покупки
-                            activateError(
-                                context, t.purchaseScreenPurchaseError);
-                            // Возможно, показать диалоговое окно с ошибкой или Snackbar
-                          } finally {
-                            setState(() {
-                              _isLoading = false;
-                            });
-                          }
-                        }, // Добавьте соответствующий текст для кнопки
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                              const Color.fromARGB(
-                                  255, 116, 177, 151)), // Цвет фона кнопки
-                          padding: MaterialStateProperty.all<EdgeInsets>(
-                            const EdgeInsets.symmetric(
-                                vertical:
-                                    5.0), // Внутренние отступы для высоты кнопки
-                          ),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                  3.0), // Скругление углов
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          t.purchaseScreenBuyButton,
-                          style: const TextStyle(
-                              color: Colors.black, fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  )
                 ],
               )
       ]),

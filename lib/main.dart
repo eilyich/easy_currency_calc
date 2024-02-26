@@ -1,6 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api
 
 import 'dart:async';
+// import 'dart:html';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
@@ -89,6 +90,10 @@ Future<void> main() async {
 /// MYAPP ////////////////////////////////////////////////////////////////////
 /// //////////////////////////////////////////////////////////////////////////
 /// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
 
 class MyApp extends StatefulWidget {
   MyApp({Key? key}) : super(key: key);
@@ -107,7 +112,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  StreamSubscription<List<PurchaseDetails>>? _subscription;
+  StreamSubscription<List<PurchaseDetails>>? subscription;
   ProductDetails? productDetails; // Добавьте эту строку
   // void Function(String message)? showErrorCallback;
 
@@ -131,6 +136,15 @@ class _MyAppState extends State<MyApp> {
   // Идентификатор продукта для отключения рекламы.
   final String _kAdFreeId = 'remove_ads_01';
 
+  /// //////////////////////////////////////////////////////////////////////////
+  /// INIT STATE ///////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+
   @override
   void initState() {
     super.initState();
@@ -143,7 +157,7 @@ class _MyAppState extends State<MyApp> {
     // совершенных пользователем.
     // Внутри вызова listen, покупки обрабатываются методом _onPurchaseUpdated,
     // а ошибки — с помощью заглушки для обработки ошибок.
-    _subscription = InAppPurchase.instance.purchaseStream.listen(
+    subscription = InAppPurchase.instance.purchaseStream.listen(
       (List<PurchaseDetails> purchaseDetailsList) {
         _onPurchaseUpdated(purchaseDetailsList);
       },
@@ -155,7 +169,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    subscription?.cancel();
     super.dispose();
   }
 
@@ -220,9 +234,9 @@ class _MyAppState extends State<MyApp> {
       return;
     }
 
-    Set<String> _kIds = <String>{_kAdFreeId};
+    Set<String> kIds = <String>{_kAdFreeId};
     final ProductDetailsResponse response =
-        await InAppPurchase.instance.queryProductDetails(_kIds);
+        await InAppPurchase.instance.queryProductDetails(kIds);
     if (response.notFoundIDs.isNotEmpty) {
       // Продукт не найден
       print('The product $_kAdFreeId was not found in the store');
@@ -327,6 +341,15 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+/// //////////////////////////////////////////////////////////////////////////
+/// SEARCH SHEET /////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+
 class CurrencySearchSheet extends StatefulWidget {
   final List<String> currencyList;
   final Map<String, String> currencyNames;
@@ -401,6 +424,10 @@ class _CurrencySearchSheetState extends State<CurrencySearchSheet> {
 
 /// //////////////////////////////////////////////////////////////////////////
 /// MAIN SCREEN //////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
+/// //////////////////////////////////////////////////////////////////////////
 /// //////////////////////////////////////////////////////////////////////////
 /// //////////////////////////////////////////////////////////////////////////
 
@@ -581,6 +608,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   /// INIT STATE ///////////////////////////////////////////////////////////////
   /// //////////////////////////////////////////////////////////////////////////
   /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+
   @override
   void initState() {
     super.initState();
@@ -660,6 +692,25 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     setState(() {
       maxSelectedCurrencies = maxSelected;
       isAdFreeScreenStatus = isAdFree ? true : false;
+    });
+  }
+
+  Future<dynamic> testTestTest() async {
+    final inAppPurchase = InAppPurchase.instance;
+    final response = await inAppPurchase.restorePurchases();
+    return response; // Убедитесь, что response содержит данные, которые вы хотите отобразить
+  }
+
+  void _openPurchaseScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PurchaseScreen()),
+    ).then((result) {
+      // Проверяем результат
+      if (result == true) {
+        // Вызываем метод для обновления статуса покупки
+        _updatePurchaseStatus();
+      }
     });
   }
 
@@ -825,6 +876,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   int maxSelectedCurrencies = 6;
   bool isAdFreeScreenStatus = true;
+
+  /// //////////////////////////////////////////////////////////////////////////
+  /// MAIN WIDGET //////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
 
   Widget _buildListItem(BuildContext context, int index) {
     String locale = Localizations.localeOf(context).languageCode;
@@ -1050,6 +1110,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// //////////////////////////////////////////////////////////////////////////
+  /// BUILD ////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+  /// //////////////////////////////////////////////////////////////////////////
+
   @override
   Widget build(BuildContext context) {
     String locale = Localizations.localeOf(context).languageCode;
@@ -1110,11 +1179,21 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       leading: const Icon(Icons.wallet_giftcard_outlined),
                       title: Text(t.drawerRemoveAds),
                       onTap: () {
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (context) => const PurchaseScreen()),
+                        // );
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const PurchaseScreen()),
-                        );
+                            builder: (context) => PurchaseScreen(),
+                          ),
+                        ).then((result) {
+                          if (result == true) {
+                            _updatePurchaseStatus();
+                          }
+                        });
                       },
                     ),
                     ListTile(
@@ -1136,7 +1215,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.3.1 (Beta)",
+                "v 0.3.3 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 15),
@@ -1170,8 +1249,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
+
+        /// ////////////////////////////////////////////////////////////////////
+        /// COLUMN /////////////////////////////////////////////////////////////
+        /// ////////////////////////////////////////////////////////////////////
+        /// ////////////////////////////////////////////////////////////////////
+
         body: Column(
           children: <Widget>[
+            FutureBuilder(
+              future: testTestTest(),
+              builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator(); // Показываем индикатор загрузки, пока данные загружаются
+                } else if (snapshot.hasError) {
+                  return Text(
+                      'Error: ${snapshot.error}'); // Показываем ошибку, если что-то пошло не так
+                } else {
+                  return Text(snapshot.data.toString()); // Отображаем данные
+                }
+              },
+            ),
             const SizedBox(height: 7),
             isAdFreeScreenStatus
                 ? const SizedBox.shrink()
