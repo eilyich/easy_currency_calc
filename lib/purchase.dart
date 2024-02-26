@@ -38,6 +38,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   Widget build(BuildContext context) {
     var t = AppLocalizations.of(context)!;
 
+    bool isAdFreeState = MyApp.of(context)!.isAdFreeState;
+
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
@@ -54,47 +56,36 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FutureBuilder<bool>(
-                    future: MyApp.of(context)
-                        ?.isAdFreeChecker(), // Вызов функции для проверки
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        // Пока идет проверка, можно показать индикатор загрузки
-                        return const CircularProgressIndicator();
-                      }
-                      if (snapshot.hasData && snapshot.data == true) {
-                        // Если реклама отключена (true)
-                        return Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 50),
-                                Center(
-                                  child: SvgPicture.asset(
-                                    'assets/money-cash-purchased.svg', // Путь к SVG для состояния без рекламы
-                                    width: 200.0,
-                                    height: 200.0,
-                                    colorFilter: const ColorFilter.mode(
-                                        Color.fromARGB(255, 116, 177, 151),
-                                        BlendMode.srcIn),
-                                  ),
+                  isAdFreeState
+                      ? Padding(
+                          padding: const EdgeInsets.all(28.0),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 50),
+                              Center(
+                                child: SvgPicture.asset(
+                                  'assets/money-cash-purchased.svg', // Путь к SVG для состояния без рекламы
+                                  width: 200.0,
+                                  height: 200.0,
+                                  colorFilter: const ColorFilter.mode(
+                                      Color.fromARGB(255, 116, 177, 151),
+                                      BlendMode.srcIn),
                                 ),
-                                const SizedBox(height: 50),
-                                Text(
-                                  t.purchaseScreenBuyTY1,
-                                  style: const TextStyle(
-                                      color: Color.fromARGB(255, 116, 177, 151),
-                                      fontSize: 18,
-                                      fontStyle: FontStyle.italic),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(t.purchaseScreenBuyTY2,
-                                    style: const TextStyle(fontSize: 16))
-                              ],
-                            ));
-                      } else {
-                        // Если реклама включена (false)
-                        return Column(
+                              ),
+                              const SizedBox(height: 50),
+                              Text(
+                                t.purchaseScreenBuyTY1,
+                                style: const TextStyle(
+                                    color: Color.fromARGB(255, 116, 177, 151),
+                                    fontSize: 18,
+                                    fontStyle: FontStyle.italic),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(t.purchaseScreenBuyTY2,
+                                  style: const TextStyle(fontSize: 16))
+                            ],
+                          ))
+                      : Column(
                           children: [
                             const SizedBox(height: 50),
                             Center(
@@ -147,23 +138,14 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                                       _isLoading =
                                           true; // Включаем индикатор загрузки
                                     });
-
                                     try {
                                       final onTapState = MyApp.of(context);
-                                      if (await onTapState?.isAdFreeChecker() ??
-                                          false) {
-                                        // Реклама уже отключена, показываем сообщение
-                                        activateError(context, t.miscAds);
-                                      } else {
-                                        if (onTapState?.productDetails !=
-                                            null) {
-                                          onTapState?.buyProduct();
-                                          Navigator.pop(context, true);
-                                        } else {
-                                          activateError(context,
-                                              t.exceptionGooglePlayUnavailable);
-                                        }
-                                      }
+                                      isAdFreeState
+                                          ? activateError(context, t.miscAds)
+                                          : (onTapState?.productDetails != null)
+                                              ? onTapState?.buyProduct()
+                                              : activateError(context,
+                                                  t.exceptionGooglePlayUnavailable);
                                     } catch (e) {
                                       // Обрабатываем любые ошибки, возникшие во время покупки
                                       activateError(context,
@@ -203,10 +185,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                               ),
                             )
                           ],
-                        );
-                      }
-                    },
-                  ),
+                        ),
                 ],
               )
       ]),

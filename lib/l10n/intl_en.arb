@@ -7,7 +7,7 @@
     "mainLang": "Language",
     "exceptionRateFailure": "Exchange rates fetching failure",
     "exceptionCheckConn": "Check Internet connection...",
-    "exceptionGooglePlayUnavailable": "Магазин недоступен",
+    "exceptionGooglePlayUnavailable": "Service unavailable",
     "mainRatesLoading": "Loading exchange rates",
     "mainDisclamer1": "Simple currency converter created for your convenience.\n \nFor any questions feel free to ",
     "mainDiclamer2": "mail me!",

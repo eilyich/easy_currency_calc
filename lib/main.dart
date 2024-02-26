@@ -113,25 +113,19 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   StreamSubscription<List<PurchaseDetails>>? subscription;
-  ProductDetails? productDetails; // Добавьте эту строку
-  // void Function(String message)? showErrorCallback;
-
+  ProductDetails? productDetails;
   // ignore: unused_field
   String _currentLocale = 'en';
   Locale _locale =
       const Locale('en'); // Используйте язык по умолчанию, например, английский
-
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
-
   static _MyAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MyAppState>();
 
   // Переменная используется для хранения состояния — отключена ли реклама в приложении.
   // Изначально устанавливается в false, указывая, что реклама включена.
-  // ignore: unused_field
-  bool _isAdFreeState = false;
+  bool isAdFreeState = false;
 
   // Идентификатор продукта для отключения рекламы.
   final String _kAdFreeId = 'remove_ads_01';
@@ -147,24 +141,20 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void initState() {
+    InAppPurchase.instance.purchaseStream.listen((purchaseDetailsList) {
+      isAdFreeChecker(purchaseDetailsList).then((isPurchased) {
+        setState(() {
+          isAdFreeState = isPurchased;
+        });
+        updatePurchaseStatus();
+      });
+    }, onDone: () {}, onError: (error) {});
+    // updatePurchaseStatus();
     super.initState();
     _loadTheme();
     _loadLocale();
     _loadProducts(); // Загрузите доступные продукты для покупки
     InAppPurchase.instance.restorePurchases();
-
-    // Создает подписку на поток покупок. Этот поток предоставляет уведомления о покупках,
-    // совершенных пользователем.
-    // Внутри вызова listen, покупки обрабатываются методом _onPurchaseUpdated,
-    // а ошибки — с помощью заглушки для обработки ошибок.
-    subscription = InAppPurchase.instance.purchaseStream.listen(
-      (List<PurchaseDetails> purchaseDetailsList) {
-        _onPurchaseUpdated(purchaseDetailsList);
-      },
-      onError: (error) {
-        _checkAdFreeStatus(); // Проверяет, была ли уже совершена покупка для отключения рекламы,и обновляет состояние _isAdFreeState.
-      },
-    );
   }
 
   @override
@@ -173,21 +163,12 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-// void _restorePurchases() async {
-//   InAppPurchase.instance.restorePurchases();
-// }
-
-  // Асинхронно проверяет, была ли куплена опция без рекламы, с помощью метода isAdFreeChecker(), и обновляет состояние _isAdFreeState.
-  Future<void> _checkAdFreeStatus() async {
-    _isAdFreeState = await isAdFreeChecker();
-    setState(() {});
-  }
-
   // Асинхронно проверяет, не куплена ли уже опция без рекламы.
   // Если нет, и если доступны детали продукта, инициирует процесс покупки
   // с использованием метода InAppPurchase.instance.buyNonConsumable().
   void buyProduct() async {
-    final bool isAdFree = await isAdFreeChecker();
+    // final bool isAdFree = await isAdFreeChecker();
+    final bool isAdFree = isAdFreeState;
     if (!isAdFree) {
       // Логика покупки продукта
       // Загрузите детали продукта, если они ещё не загружены
@@ -196,19 +177,53 @@ class _MyAppState extends State<MyApp> {
             PurchaseParam(productDetails: productDetails!);
         InAppPurchase.instance.buyNonConsumable(purchaseParam: purchaseParam);
       } else {
-        print("Детали продукта не доступны");
-        // activateError(navigatorKey.currentContext!, 'детали недоступны');
+        // print("Детали продукта не доступны");
+        activateError(navigatorKey.currentContext!, 'детали недоступны');
       }
     } else {
-      print('товар уже куплен');
+      // print('товар уже куплен');
+      activateError(navigatorKey.currentContext!, 'товар уже куплен');
     }
   }
 
-  // Асинхронно возвращает true или false, проверяя, сохранено ли в SharedPreferences значение adFree,
-  // которое указывает на покупку опции отключения рекламы.
-  Future<bool> isAdFreeChecker() async {
+  // / Меняем возвращаемый тип метода на Future<bool> для асинхронного возвращения значения
+  Future<bool> isAdFreeChecker(
+      List<PurchaseDetails> purchaseDetailsList) async {
+    // Проходим по списку деталей покупок асинхронно
+    for (PurchaseDetails purchaseDetails in purchaseDetailsList) {
+      // Проверяем статус покупки
+      if (purchaseDetails.status == PurchaseStatus.purchased ||
+          purchaseDetails.status == PurchaseStatus.restored) {
+        return true; // Покупка найдена и подтверждена
+      }
+    }
+    // Если ни одна покупка не соответствует критериям, возвращаем false
+    return false;
+  }
+
+  int maxSelectedCurrencies = 4;
+  bool isAdFreeScreenStatus = true;
+
+  Future<void> updatePurchaseStatus() async {
+    try {
+      setState(() {
+        maxSelectedCurrencies = isAdFreeState ? 30 : 6;
+        print("Статус количества строк обновлен: $maxSelectedCurrencies");
+      });
+    } catch (e) {
+      print("Ошибка обработки статуса покупки");
+    }
+  }
+
+  Future<void> _saveMaxSelectedCurrencies(int value) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('adFree') ?? false;
+    await prefs.setInt('maxSelectedCurrencies', value);
+  }
+
+  Future<int> _loadMaxSelectedCurrencies() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('maxSelectedCurrencies') ??
+        4; // Возвращаем 4, если значение не найдено
   }
 
   // Обрабатывает обновления покупок.
@@ -239,7 +254,9 @@ class _MyAppState extends State<MyApp> {
         await InAppPurchase.instance.queryProductDetails(kIds);
     if (response.notFoundIDs.isNotEmpty) {
       // Продукт не найден
-      print('The product $_kAdFreeId was not found in the store');
+      activateError(
+          context, 'The product $_kAdFreeId was not found in the store');
+      // print('The product $_kAdFreeId was not found in the store');
       return;
     }
 
@@ -260,12 +277,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   // Асинхронно сохраняет в SharedPreferences значение true для ключа adFree,
-  // указывая на то, что опция отключения рекламы куплена, и обновляет состояние _isAdFreeState.
+  // указывая на то, что опция отключения рекламы куплена, и обновляет состояние isAdFreeState.
   void _disableAds() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('adFree', true);
     setState(() {
-      _isAdFreeState = true; // Обновляем состояние
+      isAdFreeState = true; // Обновляем состояние
     });
   }
 
@@ -445,20 +462,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  bool areRatesLoaded = false;
+  // ignore: unused_field
   int? _lastUpdateTimestamp;
+  // ignore: unused_field
+  bool _noInternetConnection = false;
+
+  bool areRatesLoaded = false;
   int _activeInputIndex = -1;
   final NumberFormat _formatter = NumberFormat("###,##0.##", "ru_RU");
   List<String> _selectedCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focusNodes = [];
   Map<String, double> _rates = {};
-  bool _noInternetConnection = false;
   String selectedCurrency = '';
   TextEditingController searchController = TextEditingController();
   bool _isInitialized = false;
   bool _areFieldsEmpty = true;
   bool _isEditMode = false;
+  Timer? _retryTimer;
+
+  BannerAd? adaptiveBannerAd;
+  late AdSize? adaptiveBannerAdSize;
+  late BannerAd myBanner;
+  late AdWidget adWidget;
 
   Map<String, String> getCurrencyNames(String locale) {
     Map<String, dynamic> selectedMap = (locale == 'ru') ? aliasesRU : aliasesEN;
@@ -571,12 +597,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     });
   }
 
-  BannerAd? adaptiveBannerAd;
-  late AdSize? adaptiveBannerAdSize;
-
-  late BannerAd myBanner;
-  late AdWidget adWidget;
-
   void loadAdaptiveBannerAd(String adaptiveAdId) async {
     double width = MediaQuery.of(context).size.width;
     AdSize? size = await AdSize.getAnchoredAdaptiveBannerAdSize(
@@ -637,8 +657,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       });
     });
 
-    _updatePurchaseStatus();
-
     WidgetsBinding.instance.addPostFrameCallback((_) => loadAdaptiveBannerAd(
           dotenv.env['GOOGLE_AD_BOTTOM_BANNER']!,
         ));
@@ -648,12 +666,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        // Обработчики событий рекламы, например, при загрузке или ошибке
-        // onAdLoaded: (Ad ad) => print('Ad loaded.'),
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          // Освободите ресурсы, если реклама не загрузилась
           ad.dispose();
-          // print('Ad failed to load: $error');
         },
       ),
     );
@@ -674,58 +688,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       }
     });
   }
-
-  Future<void> _updatePurchaseStatus() async {
-    bool isAdFree = await MyApp.of(context)!
-        .isAdFreeChecker(); // Предполагаем, что appState доступен
-
-    int maxSelected =
-        await _loadMaxSelectedCurrencies(); // Загрузка из SharedPreferences
-
-    try {
-      bool isAdFree = await MyApp.of(context)!
-          .isAdFreeChecker(); // Попытка получить значение _isAdFree
-      maxSelected = isAdFree ? 30 : 6;
-      _saveMaxSelectedCurrencies(maxSelected); // Сохраняем обновленное значение
-    } catch (e) {}
-
-    setState(() {
-      maxSelectedCurrencies = maxSelected;
-      isAdFreeScreenStatus = isAdFree ? true : false;
-    });
-  }
-
-  Future<dynamic> testTestTest() async {
-    final inAppPurchase = InAppPurchase.instance;
-    final response = await inAppPurchase.restorePurchases();
-    return response; // Убедитесь, что response содержит данные, которые вы хотите отобразить
-  }
-
-  void _openPurchaseScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => PurchaseScreen()),
-    ).then((result) {
-      // Проверяем результат
-      if (result == true) {
-        // Вызываем метод для обновления статуса покупки
-        _updatePurchaseStatus();
-      }
-    });
-  }
-
-  Future<void> _saveMaxSelectedCurrencies(int value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('maxSelectedCurrencies', value);
-  }
-
-  Future<int> _loadMaxSelectedCurrencies() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('maxSelectedCurrencies') ??
-        4; // Возвращаем 4, если значение не найдено
-  }
-
-  Timer? _retryTimer;
 
   @override
   void dispose() {
@@ -759,8 +721,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         _saveRatesToSharedPreferences(result['rates']);
       });
     } catch (e) {
-      activateError(
-          context, AppLocalizations.of(context)!.exceptionRateFailure);
+      // activateError(
+      //     context, AppLocalizations.of(context)!.exceptionRateFailure);
 
       // Установка таймера для повторного запроса
       _retryTimer?.cancel();
@@ -874,9 +836,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  int maxSelectedCurrencies = 6;
-  bool isAdFreeScreenStatus = true;
-
   /// //////////////////////////////////////////////////////////////////////////
   /// MAIN WIDGET //////////////////////////////////////////////////////////////
   /// //////////////////////////////////////////////////////////////////////////
@@ -889,10 +848,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildListItem(BuildContext context, int index) {
     String locale = Localizations.localeOf(context).languageCode;
     Map<String, String> currencyNames = getCurrencyNames(locale);
-
     var t = AppLocalizations.of(context)!;
-
+    int maxSelectedCurrencies = MyApp.of(context)!.maxSelectedCurrencies;
+    bool isAdFreeScreenStatus = MyApp.of(context)!.isAdFreeState;
     final key = ValueKey('currency_$index');
+
     if (index == _selectedCurrencies.length) {
       if (_selectedCurrencies.length >= maxSelectedCurrencies) {
         if (isAdFreeScreenStatus) {
@@ -916,7 +876,23 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         context,
                         MaterialPageRoute(
                             builder: (context) => const PurchaseScreen()),
-                      );
+                      ).then((result) {
+                        if (result == true) {
+                          MyApp.of(context)!.updatePurchaseStatus();
+                          InAppPurchase.instance.purchaseStream.listen(
+                              (purchaseDetailsList) {
+                            MyApp.of(context)!
+                                .isAdFreeChecker(purchaseDetailsList)
+                                .then((isPurchased) {
+                              setState(() {
+                                isAdFreeScreenStatus = isPurchased;
+                              });
+                              MyApp.of(context)!.updatePurchaseStatus();
+                              ;
+                            });
+                          }, onDone: () {}, onError: (error) {});
+                        }
+                      });
                     },
                     child: Text(t.exceptionMaximumRowsGetProLink,
                         style: const TextStyle(
@@ -1123,6 +1099,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     String locale = Localizations.localeOf(context).languageCode;
     var t = AppLocalizations.of(context)!;
+    bool isAdFreeScreenStatus = MyApp.of(context)!.isAdFreeState;
 
     return Scaffold(
         key: _scaffoldKey,
@@ -1179,19 +1156,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       leading: const Icon(Icons.wallet_giftcard_outlined),
                       title: Text(t.drawerRemoveAds),
                       onTap: () {
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //       builder: (context) => const PurchaseScreen()),
-                        // );
                         Navigator.push(
                           context,
                           MaterialPageRoute(
+                            // ignore: prefer_const_constructors
                             builder: (context) => PurchaseScreen(),
                           ),
                         ).then((result) {
                           if (result == true) {
-                            _updatePurchaseStatus();
+                            MyApp.of(context)!.updatePurchaseStatus();
+                            InAppPurchase.instance.purchaseStream.listen(
+                                (purchaseDetailsList) {
+                              MyApp.of(context)!
+                                  .isAdFreeChecker(purchaseDetailsList)
+                                  .then((isPurchased) {
+                                setState(() {
+                                  isAdFreeScreenStatus = isPurchased;
+                                });
+                                MyApp.of(context)!.updatePurchaseStatus();
+                                ;
+                              });
+                            }, onDone: () {}, onError: (error) {});
                           }
                         });
                       },
@@ -1215,7 +1200,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               const Text(
-                "v 0.3.3 (Beta)",
+                "v 0.4.3 (Beta)",
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 15),
@@ -1223,8 +1208,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   InkWell(
-                    onTap: () => _launchUrl(
-                        'https://doc-hosting.flycricket.io/easy-converter-privacy-policy/d34d2042-6aac-4b5b-905c-3d5b89c8746e/privacy'),
+                    onTap: () => _launchUrl(dotenv.env['POLICY']!),
                     child: Text(
                       t.drawerPrivacy,
                       style: const TextStyle(
@@ -1233,8 +1217,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 5),
                   InkWell(
-                    onTap: () => _launchUrl(
-                        'https://doc-hosting.flycricket.io/easy-converter-terms-of-use/e77c2dc5-25eb-4615-a538-41a32287d708/terms'),
+                    onTap: () => _launchUrl(dotenv.env['TERMS']!),
                     child: Text(
                       t.drawerTerms,
                       style: const TextStyle(
@@ -1257,20 +1240,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
         body: Column(
           children: <Widget>[
-            FutureBuilder(
-              future: testTestTest(),
-              builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator(); // Показываем индикатор загрузки, пока данные загружаются
-                } else if (snapshot.hasError) {
-                  return Text(
-                      'Error: ${snapshot.error}'); // Показываем ошибку, если что-то пошло не так
-                } else {
-                  return Text(snapshot.data.toString()); // Отображаем данные
-                }
-              },
-            ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 4),
             isAdFreeScreenStatus
                 ? const SizedBox.shrink()
                 : Container(
@@ -1278,56 +1248,62 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     height: myBanner.size.height.toDouble(),
                     width: myBanner.size.width.toDouble(),
                     child: adWidget),
-            const SizedBox(height: 7),
+            const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.only(left: 2),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.currency_exchange,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _getRates();
-                    },
-                  ),
-                  _noInternetConnection
-                      ? Text(
-                          t.exceptionCheckConn,
-                          style: const TextStyle(
-                            fontSize: 10, // размер шрифта
-                            color:
-                                Color.fromARGB(255, 173, 63, 53), // цвет шрифта
-                          ),
-                        )
-                      : (_lastUpdateTimestamp != null)
-                          ? Text(
-                              '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
-                              style: const TextStyle(
-                                fontSize: 10, // размер шрифта
-                                color: Color.fromARGB(
-                                    255, 116, 177, 151), // цвет шрифта
-                              ),
-                            )
-                          : Row(children: [
-                              Text(
-                                t.mainRatesLoading,
-                                style: const TextStyle(
-                                  fontSize: 10, // размер шрифта
-                                  color: Color.fromARGB(
-                                      255, 116, 177, 151), // цвет шрифта
-                                ),
-                              ),
-                              const SizedBox(
-                                width: 15,
-                              ),
-                              LoadingAnimationWidget.staggeredDotsWave(
-                                  color:
-                                      const Color.fromARGB(255, 116, 177, 151),
-                                  size: 20),
-                            ]),
+                  //////////////////////////////////////////////////////////////
+                  // Иконка обновления курсов и
+                  // Сообщения об успешной загрузке / не загрузке курсов
+                  //////////////////////////////////////////////////////////////
+
+                  // IconButton(
+                  //   icon: const Icon(
+                  //     Icons.currency_exchange,
+                  //     size: 20,
+                  //   ),
+                  //   onPressed: () {
+                  //     _getRates();
+                  //   },
+                  // ),
+                  // _noInternetConnection
+                  //     ? Text(
+                  //         t.exceptionCheckConn,
+                  //         style: const TextStyle(
+                  //           fontSize: 10, // размер шрифта
+                  //           color:
+                  //               Color.fromARGB(255, 173, 63, 53), // цвет шрифта
+                  //         ),
+                  //       )
+                  //     : (_lastUpdateTimestamp != null)
+                  //         ? Text(
+                  //             '${t.mainCurUpdated}:    ${formatDate(_lastUpdateTimestamp!)}',
+                  //             style: const TextStyle(
+                  //               fontSize: 10, // размер шрифта
+                  //               color: Color.fromARGB(
+                  //                   255, 116, 177, 151), // цвет шрифта
+                  //             ),
+                  //           )
+                  //         : Row(children: [
+                  //             Text(
+                  //               t.mainRatesLoading,
+                  //               style: const TextStyle(
+                  //                 fontSize: 10, // размер шрифта
+                  //                 color: Color.fromARGB(
+                  //                     255, 116, 177, 151), // цвет шрифта
+                  //               ),
+                  //             ),
+                  //             const SizedBox(
+                  //               width: 15,
+                  //             ),
+                  //             LoadingAnimationWidget.staggeredDotsWave(
+                  //                 color:
+                  //                     const Color.fromARGB(255, 116, 177, 151),
+                  //                 size: 20),
+                  //           ]),
                   IconButton(
                     icon: Icon(Icons.settings_outlined,
                         size: 22,
