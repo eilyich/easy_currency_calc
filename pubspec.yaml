@@ -3,7 +3,7 @@ description: Currency converter
 
 # publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 0.4.4+27
+version: 0.4.7+30
 
 environment:
   sdk: '>=2.18.4 <3.0.0'
